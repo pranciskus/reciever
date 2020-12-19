@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# APX
+
+templates/Manifests
+templates/installed
+templates/ServerUnlock.bin

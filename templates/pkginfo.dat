@@ -1,0 +1,30 @@
+[Package]
+Name=#mod_name
+Type=0
+Version=#mod_version
+BaseVersion=
+MinVersion=
+Author=Mod Team
+Date=132214187560270000
+ID=AAA9999
+URL=www.YourModSite.com
+Desc=Your new mod.
+Category=0
+Origin=0
+Flags=0
+CurLocation=0
+NumLocations=1
+Location=#location
+CurRFM=0
+NumRFM=1
+RFM=#build_path\#mod_name.mas
+NumTrackFiles=1
+Track="#trackmod_name #trackmod_version,0" #layouts
+NumVehicleFiles=#veh_mods_count
+#veh_mod_contents
+NumOtherFiles=0
+rFmFile=#build_path\#mod_name_rfm\default.rfm
+IconFile=#build_path\#mod_name_rfm\icon.dds
+SmallIconFile=#build_path\#mod_name_rfm\smicon.dds
+
+CurPackage=0
