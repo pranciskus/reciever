@@ -19,7 +19,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     steam_path = join(root_path, "steamcmd", "steamcmd.exe")
     server_path = join(root_path, "server")
 
-    if command == "install":
+    if command == "install" or command == "update":
         command_line = steam_path + f" +force_install_dir {server_path} "\
             " " + STEAMCMDCOMMANDS[command]
     else:
