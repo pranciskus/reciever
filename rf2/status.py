@@ -3,14 +3,7 @@ from os.path import join
 from time import time
 from requests import get
 from json import load
-
-
-def get_server_port(server_config: dict) -> int:
-    player_json_path = join(
-        server_config["server"]["root_path"], "server", "userData", "player", "player.JSON")
-
-    content = load(open(player_json_path, "r"))
-    return content["Miscellaneous"]["WebUI port"]
+from rf2.util import get_server_port
 
 
 def get_server_status(server_config: dict) -> dict:

@@ -1,6 +1,7 @@
-from rf2.util import get_main_window
+from rf2.util import get_main_window, get_server_port
 from enum import Enum
 from time import sleep
+from requests import post
 
 
 class Action(Enum):
@@ -21,8 +22,14 @@ def chat(server_config: dict, message: str):
     """
     if len(message) > 50:
         raise Exception("Message to long")
-    dialog = get_main_window(server_config)
-    dialog["Chat:Edit"].type_keys(message.replace(" ", "{SPACE}") + "{ENTER}")
+
+    target_url = "http://localhost:{}/rest/chat".format(
+        get_server_port(server_config))
+
+    try:
+        got = post(target_url, data=message)
+    except Exception as e:
+        print(e)
 
 
 def do_action(server_config: dict, action: Action):

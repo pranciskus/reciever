@@ -1,6 +1,7 @@
 from pywinauto import Desktop, WindowSpecification
 from os.path import join
 from time import sleep
+from json import load
 
 
 def get_main_window(server_config: dict):
@@ -51,3 +52,11 @@ def set_window_elements_value(elements: dict, container: WindowSpecification):
             else:
                 container[key].uncheck(value)
         sleep(0.5)
+
+
+def get_server_port(server_config: dict) -> int:
+    player_json_path = join(
+        server_config["server"]["root_path"], "server", "userData", "player", "player.JSON")
+
+    content = load(open(player_json_path, "r"))
+    return content["Miscellaneous"]["WebUI port"]
