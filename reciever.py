@@ -32,9 +32,9 @@ recieved_status = None
 
 
 def read_mod_config() -> dict:
-    if not exists("mod.json"):
-        raise Exception("Mod config was not found")
     config = None
+    if not exists("mod.json"):
+        return config
     with open("mod.json", "r") as file:
         config = loads(file.read())
     return config
@@ -142,12 +142,26 @@ def deploy_server_config():
     rfm_contents = request.form.get("rfm_config")
     if not config_contents:
         abort(404)
+    try:
+        loads(config_contents)
+    except JSONDecodeError:
+        return json_response({"is_ok": False, "syntax_failed": True})
+
+    # apply weather and grip conditions
+    weather = None
+    grip = {}
+    for key, value in request.files.items():
+        if "RealRoad" in key:
+            # it is a grip file
+            grip[key] = value
+        if key == "weather":
+            weather = value
     # paste the config
     with open("mod.json", "w") as config:
         config.write(config_contents)
     from rf2.deploy import deploy_server
-    got = deploy_server(get_server_config(), rfm_contents)
-    return json_response({"is_ok": got})
+    got = deploy_server(get_server_config(), rfm_contents, weather, grip)
+    return json_response({"is_ok": False})
 
 
 @app.route('/results', methods=["GET"])
