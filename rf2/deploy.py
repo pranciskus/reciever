@@ -11,11 +11,13 @@ from distutils.version import LooseVersion
 VERSION_SUFFIX = ".9apx"
 
 
-def deploy_server(server_config: dict, rfm_contents: str) -> bool:
-
+def deploy_server(server_config: dict, rfm_contents: str, weather_data, grip_data) -> bool:
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
     mod_info = server_config["mod"]["mod"]
+    conditions = server_config["mod"]["conditions"] if "conditions" in server_config["mod"] else None
+    root_path = server_config["server"]["root_path"]
+
     restore_vanilla(server_config)
     root_path = server_config["server"]["root_path"]
     # build vehicle mods
@@ -34,6 +36,39 @@ def deploy_server(server_config: dict, rfm_contents: str) -> bool:
         install_mod(server_config, workshop_id)
         # TODO cmd mods are not supported yet.
     build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
+
+    create_conditions(root_path, weather_data, grip_data, conditions)
+    return True
+
+
+def create_conditions(root_path: str, weather, grip, conditions) -> bool:
+    if conditions is None:
+        # conditions may be not configured at all
+        return True
+
+    server_root = join(root_path, "server")
+    conditions_root = conditions["conditionsRoot"]
+    weather_file_name = conditions["weatherTarget"]
+    condition_files_root_path = join(
+        server_root, "UserData", "player", "Settings", conditions_root)
+    if not exists(condition_files_root_path):
+        mkdir(condition_files_root_path)
+    # save weather file
+    weather_file_path = join(condition_files_root_path, weather_file_name)
+    weather.save(weather_file_path)
+
+    with open(weather_file_path, "r") as weather_file:
+        content = weather_file.read()
+        for key, value in grip.items():
+            print(key, value)
+            content = re.sub(r"{}=\".+\"".format(key),
+                             "{}=\"{}\"".format(key, key + ".rrbin"), content)
+            grip_file_path = join(condition_files_root_path, key + ".rrbin")
+            value.save(grip_file_path)
+
+        with open(weather_file_path, "w") as weather_write_handle:
+            weather_write_handle.write(content)
+
     return True
 
 
@@ -237,7 +272,8 @@ def restore_vanilla(server_config: dict) -> bool:
         join(user_data_path, "Log"): ["CBash", "Results", "Shaders"],
         join(server_root_path, "Packages"): ["Skins"],
         join(server_root_path, "appcache"): [],
-        join(server_root_path, "steamapps"): []
+        join(server_root_path, "steamapps"): [],
+        join(user_data_path, "player", "Settings"): []
     }
 
     for folder_path, folders in folder_paths.items():
