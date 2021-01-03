@@ -108,8 +108,6 @@ def build_mod(server_config: dict, vehicles: dict, track: dict, mod_info: dict, 
                 join(root_path, "server", "Installed", "Vehicles", name), version == "latest")
             print("Using", version,  "as mod version for item", name)
 
-        version = version if not component["update"] else version + \
-            VERSION_SUFFIX
         line = "Vehicle=\"" + name + " v" + version + ",0\""
         for entry in vehicle["entries"]:
             line = line + " \"" + entry + ",1\""
@@ -192,6 +190,12 @@ def build_cmp_mod(server_config, component_info: dict, packageType: str = "Vehic
     root_path = server_config["server"]["root_path"]
     name = component_info["name"]
     version = component_info["version"]
+
+    if version == "latest" or version == "latest-even":
+        # use the latest one or the lastest even version
+        version = get_latest_version(
+            join(root_path, "server", "Installed", "Vehicles", name), version == "latest")
+
     update_version = version + VERSION_SUFFIX
 
     base_target_path = join(
@@ -219,7 +223,7 @@ def build_cmp_mod(server_config, component_info: dict, packageType: str = "Vehic
     location_path = join(
         root_path, f"server\\Packages\\{name}_v{update_version}.rfcmp")
     data = data.replace("component_name", name).replace("mod_version", update_version).replace(
-        "base_version", version).replace("mas_file", mas_path).replace("location", location_path).replace("mod_download_url", "http://localhost:8081/Bentley_Continental_GT3_2020_2020_v1.051apx.rfcmp")
+        "base_version", version).replace("mas_file", mas_path).replace("location", location_path).replace("mod_download_url", "")
 
     cmp_file = join(getenv('APPDATA'), "cmpinfo.dat")
     with open(cmp_file, 'w') as cmp_write:
@@ -303,12 +307,18 @@ def restore_vanilla(server_config: dict) -> bool:
 def create_mas(server_config: dict, component_info: dict, add_version_suffix=False):
     root_path = server_config["server"]["root_path"]
     build_path = join(root_path, "build")
-    component_path = join(build_path, component_info["name"])
+    name = component_info["name"]
+    component_path = join(build_path, name)
+    version = component_info["version"]
+    if version == "latest" or version == "latest-even":
+        # use the latest one or the lastest even version
+        version = get_latest_version(
+            join(root_path, "server", "Installed", "Vehicles", name), version == "latest")
     if not add_version_suffix:
-        target_path = join(build_path, component_info["name"] + ".mas")
+        target_path = join(build_path, name + ".mas")
     else:
         target_path = join(
-            build_path, component_info["name"] + "_v" + component_info["version"] + VERSION_SUFFIX + ".mas")
+            build_path, name + "_v" + version + VERSION_SUFFIX + ".mas")
     build_mas(server_config, component_path, target_path)
 
 
