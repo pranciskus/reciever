@@ -247,8 +247,6 @@ if __name__ == "__main__":
     manifests_target_path = join(reciever_path, "templates", "Manifests")
     installed_target_path = join(reciever_path, "templates", "Installed")
 
-    print(manifests_target_path)
-
     if not exists(manifests_target_path):
         manifests_source_path = join(root_path, "server", "Manifests")
         copytree(manifests_source_path, manifests_target_path)
