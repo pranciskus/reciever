@@ -36,7 +36,13 @@ jobs:
         
       - name: show working directory
         run: ls /home/runner/work/reciever/reciever
-    
+        
+      - name: Create _pth file according to specification
+        run: printf "python39.zip\n.\nimport site" > /home/runner/work/reciever/apx-build/python39._pth
+
+      - name: Add pth to folder
+        run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip python39._pth
+        
       - name: Add reciever components to zip
         run: cd /home/runner/work/reciever/reciever/ && zip -ur /home/runner/work/reciever/apx-build/release.zip *
         
