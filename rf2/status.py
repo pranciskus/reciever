@@ -1,5 +1,5 @@
 import re
-from os.path import join
+from os.path import join, isfile
 from time import time
 from requests import get
 from json import load
@@ -18,6 +18,13 @@ def get_server_status(server_config: dict) -> dict:
     """
 
     target_url = "http://localhost:{}".format(get_server_port(server_config))
+    unlock_path = join(
+        server_config["server"]["root_path"],
+        "server",
+        "UserData",
+        "ServerUnlock.bin",
+    )
+    is_unlocked = isfile(unlock_path)
     result = None
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
@@ -31,13 +38,12 @@ def get_server_status(server_config: dict) -> dict:
             "flags": status_raw["sectorFlag"],
             "maxLaps": status_raw["maximumLaps"],
             "session": status_raw["session"],
-            "vehicles": standings_raw
+            "vehicles": standings_raw,
+            "keys": is_unlocked,
         }
     except:
         result = None
 
     if not result:
-        result = {
-            "not_running": True
-        }
+        result = {"not_running": True, "keys": is_unlocked}
     return result
