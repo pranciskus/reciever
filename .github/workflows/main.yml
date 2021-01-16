@@ -1,5 +1,3 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
 # Controls when the action will run. 
@@ -40,8 +38,14 @@ jobs:
       - name: Create _pth file according to specification
         run: printf "python39.zip\n.\nimport site" > /home/runner/work/reciever/apx-build/python39._pth
 
+      - name: Create bat for easy execution
+        run: printf "python.exe reciever.py" > /home/runner/work/reciever/apx-build/reciever.bat
+        
       - name: Add pth to folder
         run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip python39._pth
+    
+      - name: Add bat to folder
+        run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip reciever.bat
         
       - name: Add reciever components to zip
         run: cd /home/runner/work/reciever/reciever/ && zip -ur /home/runner/work/reciever/apx-build/release.zip *
@@ -52,10 +56,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.sha }}
+          release_name: Release ${{ github.sha }}
           draft: false
-          prerelease: false
+          prerelease: true
 
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -63,7 +67,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: /home/runner/work/reciever/apx-build/release.zip
           asset_name: release.zip
           asset_content_type: application/zip
