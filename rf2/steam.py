@@ -20,35 +20,37 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     server_path = join(root_path, "server")
 
     if command == "install" or command == "update":
-        command_line = steam_path + f" +force_install_dir {server_path} "\
+        command_line = (
+            steam_path + f" +force_install_dir {server_path} "
             " " + STEAMCMDCOMMANDS[command]
+        )
     else:
         command_line = steam_path + " " + STEAMCMDCOMMANDS[command]
 
     if arg is not None:
         command_line = command_line + " " + arg
-    command_line = command_line + \
-        f" +quit"
+    command_line = command_line + f" +quit"
     try:
         p = subprocess.Popen(command_line, shell=True, stderr=subprocess.PIPE)
         while True:
             out = p.stderr.read(1).decode("utf-8")
-            if out == '' and p.poll() != None:
+            if out == "" and p.poll() != None:
                 break
-            if out != '':
+            if out != "":
                 sys.stdout.flush()
         return p.returncode == 0
     except:
         return False
 
 
-def get_mod_files_from_steam(server_config: dict,  id: str) -> list:
+def get_mod_files_from_steam(server_config: dict, id: str) -> list:
     """
     Lists all rfcmp files from a workshop package (must be downloaded)
     """
     root_path = server_config["server"]["root_path"]
     source_path = join(
-        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id)
+        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id
+    )
     if not exists(source_path):
         return []
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
@@ -57,7 +59,8 @@ def get_mod_files_from_steam(server_config: dict,  id: str) -> list:
 def install_mod(server_config: dict, id: str) -> bool:
     root_path = server_config["server"]["root_path"]
     source_path = join(
-        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id)
+        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id
+    )
 
     files = get_mod_files_from_steam(server_config, id)
     # copy files into rf2 packages dir
@@ -75,8 +78,7 @@ def install_mod(server_config: dict, id: str) -> bool:
 
     install_results = []
     for rf_mod in copy_results:
-        install = subprocess.getstatusoutput(
-            mod_mgr_cmdline + " -q -i" + rf_mod)
+        install = subprocess.getstatusoutput(mod_mgr_cmdline + " -q -i" + rf_mod)
         if install[0] != 0:
             logging.warning(f"ModMgr returned {install[0]} as a returncode.")
         install_results.append(install[0] == 0)
