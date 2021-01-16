@@ -8,6 +8,7 @@ from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import deploy_server
 from rf2.results import get_results, get_replays
 from rf2.setup import install_server
+from rf2.util import create_config
 from os.path import join, exists
 from os import mkdir, unlink
 from shutil import rmtree, unpack_archive
@@ -15,13 +16,12 @@ from json import loads
 from time import sleep, time
 from math import ceil
 from shutil import copytree
+from sys import exit
 import threading
+from pathlib import Path
+
 app = Flask(__name__)
-config = {
-    "DEBUG": True,
-    "CACHE_TYPE": "simple",
-    "CACHE_DEFAULT_TIMEOUT": 20
-}
+config = {"DEBUG": True, "CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 20}
 
 app.config.from_mapping(config)
 cache = Cache(app)
@@ -41,19 +41,19 @@ def read_mod_config() -> dict:
 
 
 def read_webserver_config() -> dict:
-    if not exists("server.json"):
+    server_config_path = str(Path(__file__).absolute()).replace(
+        "reciever.py", "server.json"
+    )
+    if not exists(server_config_path):
         raise Exception("Server config was not found")
     config = None
-    with open("server.json", "r") as file:
+    with open(server_config_path, "r") as file:
         config = loads(file.read())
     return config
 
 
 def get_server_config() -> dict:
-    return {
-        "mod": read_mod_config(),
-        "server": read_webserver_config()
-    }
+    return {"mod": read_mod_config(), "server": read_webserver_config()}
 
 
 def check_api_key(f):
@@ -64,6 +64,7 @@ def check_api_key(f):
         if not api_key or api_key != config["auth"]:
             abort(403)
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -80,7 +81,7 @@ def handle_error(e):
     return json_response({"error": str(e)}), code
 
 
-@app.route('/oneclick_start_server', methods=["GET"])
+@app.route("/oneclick_start_server", methods=["GET"])
 @check_api_key
 def start_oneclick():
     got = oneclick_start_server(get_server_config())
@@ -89,19 +90,19 @@ def start_oneclick():
     return json_response({"is_ok": got}), 200
 
 
-@app.route('/status', methods=["GET"])
+@app.route("/status", methods=["GET"])
 def status():
     got = get_server_status(get_server_config())
     return json_response(got), 200
 
 
-@app.route('/stop', methods=["GET"])
+@app.route("/stop", methods=["GET"])
 @check_api_key
 def stop():
     return json_response({"is_ok": stop_server(get_server_config())}), 200
 
 
-@app.route('/action/<action>', methods=["POST"])
+@app.route("/action/<action>", methods=["POST"])
 @check_api_key
 def action(action: str):
     is_ok = False
@@ -113,7 +114,7 @@ def action(action: str):
     return json_response({"is_ok": is_ok})
 
 
-@app.route('/kick', methods=["POST"])
+@app.route("/kick", methods=["POST"])
 @check_api_key
 def kick():
     is_ok = False
@@ -125,18 +126,19 @@ def kick():
     return json_response({"is_ok": is_ok})
 
 
-@app.route('/chat', methods=["POST"])
+@app.route("/chat", methods=["POST"])
 @check_api_key
 def send_message():
     message = request.form.get("message")
     from rf2.interaction import chat
+
     if not message:
         abort(404)
     chat(get_server_config(), message)
     return json_response({"is_ok": True})
 
 
-@app.route('/deploy', methods=["POST"])
+@app.route("/deploy", methods=["POST"])
 def deploy_server_config():
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
@@ -160,32 +162,33 @@ def deploy_server_config():
     with open("mod.json", "w") as config:
         config.write(config_contents)
     from rf2.deploy import deploy_server
+
     got = deploy_server(get_server_config(), rfm_contents, weather, grip)
     return json_response({"is_ok": False})
 
 
-@app.route('/results', methods=["GET"])
+@app.route("/results", methods=["GET"])
 def get_server_results():
     results = get_results(get_server_config())
     replays = get_replays(get_server_config())
     return json_response({"results": results, "replays": replays})
 
 
-@app.route('/process_results', methods=["GET"])
+@app.route("/process_results", methods=["GET"])
 def return_processed_results():
     got = process_results()
     return json_response(got)
 
 
-@app.route('/skins', methods=["POST"])
+@app.route("/skins", methods=["POST"])
 @check_api_key
 def get_skins():
     config = get_server_config()
     build_path = join(config["server"]["root_path"], "build")
-    if request.method == 'POST':
-        if 'skins' not in request.files or "target_path" not in request.form:
+    if request.method == "POST":
+        if "skins" not in request.files or "target_path" not in request.form:
             abort(418)
-        file = request.files['skins']
+        file = request.files["skins"]
         skinpack_path = join(build_path, file.filename)
         got = file.save(skinpack_path)
 
@@ -199,29 +202,30 @@ def get_skins():
     return json_response({"is_ok": True})
 
 
-@app.route('/install', methods=["GET"])
+@app.route("/install", methods=["GET"])
 def initial_setup():
     got = install_server(get_server_config())
     return json_response({"is_ok": got})
 
 
-@app.route('/lockfile', methods=["GET"])
+@app.route("/lockfile", methods=["GET"])
 def get_lockfile():
     server_config = get_server_config()
     root_path = server_config["server"]["root_path"]
-    lockfile_path = join(
-        server_config, "server", "UserData", "ServerKeys.bin")
+    lockfile_path = join(root_path, "server", "UserData", "ServerKeys.bin")
     if not exists(lockfile_path):
         abort(404)
-    return send_file(lockfile_path, attachment_filename="ServerKeys.bin", as_attachment=True)
+    return send_file(
+        lockfile_path, attachment_filename="ServerKeys.bin", as_attachment=True
+    )
 
 
-@app.route('/unlock', methods=["POST"])
+@app.route("/unlock", methods=["POST"])
 def initial_setup_unlock():
-    if request.method == 'POST':
-        if 'unlock' not in request.files:
+    if request.method == "POST":
+        if "unlock" not in request.files:
             abort(418)
-        file = request.files['unlock']
+        file = request.files["unlock"]
         server_config = get_server_config()
         root_path = server_config["server"]["root_path"]
         unlock_path = join(root_path, "server", "UserData", "ServerUnlock.bin")
@@ -232,13 +236,20 @@ def initial_setup_unlock():
 
 @app.after_request
 def after_request_func(response):
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
     return response
 
 
 if __name__ == "__main__":
+    server_config_path = str(Path(__file__).absolute()).replace(
+        "reciever.py", "server.json"
+    )
+    if not exists(server_config_path):
+        print("{} is not present".format(server_config_path))
+        create_config()
+        exit(127)
     webserver_config = read_webserver_config()
 
     root_path = webserver_config["root_path"]
@@ -260,5 +271,5 @@ if __name__ == "__main__":
     app.run(
         host=webserver_config["host"],
         port=webserver_config["port"],
-        debug=webserver_config["debug"]
+        debug=webserver_config["debug"],
     )
