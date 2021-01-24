@@ -116,6 +116,12 @@ def get_latest_version(root_path: str, latest=True) -> str:
     versions.sort(key=LooseVersion)
     if len(versions) == 0:
         raise Exception("There are no versions to choose from")
+    if latest:
+        logging.warning(
+            "You are using latest version for component inside {}. If updates are relying on that, this may cause issues.".format(
+                root_path
+            )
+        )
     if not latest:
         versions.reverse()
         for version in versions:
