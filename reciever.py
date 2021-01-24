@@ -320,7 +320,7 @@ def current_mod_filelist():
     files = mod_filelist()
     response = ""
     for file in files:
-        response = response + get_name_hash(file) + "\n"
+        response = response + file + ";" + get_name_hash(file) + "\n"
     return response
 
 
