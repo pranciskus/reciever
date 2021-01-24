@@ -70,8 +70,11 @@ def deploy_server(
             )
         track["component"]["version"] = version
     path = join(root_path, "reciever", "mod.json")
+    logging.info("Placing updated mod.json")
     with open(path, "w") as file:
         file.write(dumps(event_config))
+
+    logging.info("Finished server deploy")
     return True
 
 
@@ -280,7 +283,6 @@ def build_cmp_mod(
     data = ""
     with open("templates/cmpinfo.dat") as f:
         data = f.read()
-
     # replace values from parameters
     # TODO LOCATION -> MAYBE THE LOCATION IN PACKAGES (fullpath)
     public_ip = server_config["server"]["public_ip"]
@@ -300,6 +302,8 @@ def build_cmp_mod(
     cmp_file = join(getenv("APPDATA"), "cmpinfo.dat")
     with open(cmp_file, "w") as cmp_write:
         cmp_write.write(data)
+
+    logging.info("Created cmpinfo file in {}".format(cmp_file))
     run_modmgr_build(join(root_path, "server"), cmp_file)
     run_modmgr_install(join(root_path, "server"), location_path)
     return exists(target_path)
@@ -326,6 +330,7 @@ def restore_vanilla(server_config: dict) -> bool:
         server_root_path, "steamapps", "workshop", "content", "365960"
     )
     if exists(steam_packages_path):
+        logging.info("Removed tree in {}".format(steam_packages_path))
         rmtree(steam_packages_path)
 
     # Overwrite player.json and multiplayer.json
@@ -354,12 +359,15 @@ def restore_vanilla(server_config: dict) -> bool:
 
     for folder_path, folders in folder_paths.items():
         if exists(folder_path):
+            logging.info("Removed tree in {}".format(folder_path))
             rmtree(folder_path)
+        logging.info("Creating folder in {}".format(folder_path))
         mkdir(folder_path)
         if len(folders) > 0:
             for sub_folder in folders:
                 sub_folder_path = join(folder_path, sub_folder)
                 mkdir(sub_folder_path)
+                logging.info("Creating folder in {}".format(sub_folder_path))
 
     # Overwrite installed an manifests
     template_copy_paths = {
@@ -369,8 +377,10 @@ def restore_vanilla(server_config: dict) -> bool:
 
     for path, target_path in template_copy_paths.items():
         if exists(target_path):
+            logging.info("Removing tree in {}".format(target_path))
             rmtree(target_path)
 
+        logging.info("Applying template from {} to {}".format(path, target_path))
         copytree(path, target_path)
     # Update the server itself using steam
     run_steamcmd(server_config, "update")

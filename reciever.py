@@ -375,7 +375,12 @@ if __name__ == "__main__":
         print("Created installed template")
 
     log_path = join(root_path, "reciever.log")
-    logging.basicConfig(filename=log_path, level=logging.DEBUG)
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        level=logging.DEBUG,
+        datefmt="%Y-%m-%d %H:%M:%S",
+        filename=log_path,
+    )
     app.run(
         host=webserver_config["host"],
         port=webserver_config["port"],
