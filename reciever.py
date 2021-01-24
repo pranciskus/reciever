@@ -132,7 +132,6 @@ def kick():
 @check_api_key
 def send_message():
     message = request.form.get("message")
-    from rf2.interaction import chat
 
     if not message:
         abort(404)
@@ -163,7 +162,6 @@ def deploy_server_config():
     # paste the config
     with open("mod.json", "w") as config:
         config.write(config_contents)
-    from rf2.deploy import deploy_server
 
     got = deploy_server(get_server_config(), rfm_contents, weather, grip)
     return json_response({"is_ok": False})
