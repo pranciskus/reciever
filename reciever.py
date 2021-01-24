@@ -10,7 +10,7 @@ from rf2.results import get_results, get_replays
 from rf2.setup import install_server
 from rf2.util import create_config
 from os.path import join, exists
-from os import mkdir, unlink
+from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
 from json import loads
 from time import sleep, time
@@ -246,18 +246,72 @@ def get_public_mod_info():
     return got
 
 
+def mod_filelist():
+    got = get_public_mod_info()
+    if got is None:
+        return []
+    mod = got["mod"]["mod"]
+    files = [
+        join(
+            "Manifests",
+            "{}_{}.mft".format(mod["name"], mod["version"].replace(".", "")),
+        ),
+        join(
+            "Installed",
+            "rFm",
+            "{}_{}.mas".format(mod["name"], mod["version"].replace(".", "")),
+        ),
+        join("Packages", "{}.rfmod".format(mod["name"])),
+    ]
+    has_updates = True
+    for source, car in got["mod"]["cars"].items():
+        if car["component"]["update"]:
+            files.append(
+                join(
+                    "Packages",
+                    "{}_v{}.rfcmp".format(
+                        car["component"]["name"], car["component"]["version"]
+                    ),
+                )
+            )
+            relative_root = join(root_path, "server", "Installed", "Vehicles")
+            component_path = join(
+                relative_root,
+                car["component"]["name"],
+                car["component"]["version"],
+            )
+            files_of_update = listdir(component_path)
+            for file in files_of_update:
+                files.append(
+                    join(
+                        "Installed",
+                        "Vehicles",
+                        car["component"]["name"],
+                        car["component"]["version"],
+                        file,
+                    )
+                )
+    return files
+
+
+@app.route("/filelist", methods=["GET"])
+def current_mod_filelist():
+    files = mod_filelist()
+    return "\n".join(files)
+
+
 @app.route("/current", methods=["GET"])
 def current_mod_html():
     got = get_public_mod_info()
     if got is None:
         abort(404)
-
-    has_updates = True
-    for source, car in got["mod"]["cars"].items():
-        if car["component"]["update"]:
-            has_updates = True
+    mod = got["mod"]["mod"]
+    files = mod_filelist()
     return render_template(
-        "current.html", data=got, suffix=VERSION_SUFFIX, has_updates=has_updates
+        "current.html",
+        data=got,
+        suffix=VERSION_SUFFIX,
+        files=files,
     )
 
 
