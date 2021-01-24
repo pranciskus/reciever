@@ -9,7 +9,7 @@ from rf2.deploy import deploy_server, VERSION_SUFFIX
 from rf2.results import get_results, get_replays
 from rf2.setup import install_server
 from rf2.util import create_config
-from os.path import join, exists
+from os.path import join, exists, basename
 from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
 from json import loads
@@ -19,6 +19,7 @@ from shutil import copytree
 from sys import exit
 import threading
 from pathlib import Path
+import hashlib
 
 app = Flask(__name__)
 config = {"DEBUG": True, "CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 20}
@@ -294,10 +295,33 @@ def mod_filelist():
     return files
 
 
+def get_name_hash(text: str) -> str:
+    hash_object = hashlib.sha1(text.encode("utf8"))
+    return str(hash_object.hexdigest())
+
+
+@app.route("/file/<requested_hash_code>", methods=["GET"])
+def get_file(requested_hash_code: str):
+    config = get_server_config()
+    files = mod_filelist()
+    for file in files:
+        hash_code = get_name_hash(file)
+        if hash_code == requested_hash_code:
+            full_path = join(config["server"]["root_path"], "server", file)
+            filename = basename(full_path)
+            return send_file(
+                full_path, attachment_filename=filename, as_attachment=True
+            )
+    abort(404)
+
+
 @app.route("/filelist", methods=["GET"])
 def current_mod_filelist():
     files = mod_filelist()
-    return "\n".join(files)
+    response = ""
+    for file in files:
+        response = response + get_name_hash(file) + "\n"
+    return response
 
 
 @app.route("/current", methods=["GET"])

@@ -34,21 +34,11 @@
     The currently installed mod installs following files:
   </p>
   <ul>
-    <li>
-      Manifests/{{ data.mod.mod.name }}_{{ data.mod.mod.version | replace(".","")}}.mft
+    {% for file in files %}<li>
+      {{file}}
     </li>
-    <li>
-      Installed/rfM/{{ data.mod.mod.name }}_{{ data.mod.mod.version | replace(".","")}}.mas
-    </li>
-    <li>
-      Packages/{{ data.mod.mod.name }}.rfmod
-    </li>
-    {% if has_updates %}
-    <li>
-      As at least one mod is an update, there will be files named "apx_" and "{{suffix}}" in the Packages/ and
-      Installed/ folder.
-    </li>
-    {% endif %}
+
+    {% endfor %}
   </ul>
 </body>
 
