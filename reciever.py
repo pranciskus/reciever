@@ -20,6 +20,7 @@ from sys import exit
 import threading
 from pathlib import Path
 import hashlib
+import logging
 
 app = Flask(__name__)
 config = {"DEBUG": True, "CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 20}
@@ -373,6 +374,8 @@ if __name__ == "__main__":
         copytree(installed_source_path, installed_target_path)
         print("Created installed template")
 
+    log_path = join(root_path, "reciever.log")
+    logging.basicConfig(filename=log_path, level=logging.DEBUG)
     app.run(
         host=webserver_config["host"],
         port=webserver_config["port"],

@@ -2,6 +2,7 @@ import subprocess
 from os.path import join, exists
 from os import listdir
 from shutil import copy
+import logging
 
 STEAMCMDCOMMANDS = {
     "add": f"+login anonymous +workshop_download_item 365960",
@@ -15,6 +16,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     Runs the given steam cmd from STEAMCMDCOMMANDS
     returns if the operation is successfully
     """
+    logging.info("Triggering steam command: {}, args: {}".format(command, arg))
     root_path = server_config["server"]["root_path"]
     steam_path = join(root_path, "steamcmd", "steamcmd.exe")
     server_path = join(root_path, "server")
@@ -31,6 +33,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
         command_line = command_line + " " + arg
     command_line = command_line + f" +quit"
     try:
+        logging.info("Running shell command {}".format(command_line))
         p = subprocess.Popen(command_line, shell=True, stderr=subprocess.PIPE)
         while True:
             out = p.stderr.read(1).decode("utf-8")
@@ -39,7 +42,8 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
             if out != "":
                 sys.stdout.flush()
         return p.returncode == 0
-    except:
+    except Exception as e:
+        logging.error("Recieved error while executing steamcmd {}".format(e))
         return False
 
 
@@ -78,6 +82,9 @@ def install_mod(server_config: dict, id: str) -> bool:
 
     install_results = []
     for rf_mod in copy_results:
+        logging.info(
+            "Running modmgr command {}".format(mod_mgr_cmdline + " -q -i" + rf_mod)
+        )
         install = subprocess.getstatusoutput(mod_mgr_cmdline + " -q -i" + rf_mod)
         if install[0] != 0:
             logging.warning(f"ModMgr returned {install[0]} as a returncode.")

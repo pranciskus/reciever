@@ -7,6 +7,7 @@ from time import sleep
 from json import loads, dumps, load, dump
 import re
 from distutils.version import LooseVersion
+import logging
 
 VERSION_SUFFIX = ".9apx"
 
@@ -14,6 +15,7 @@ VERSION_SUFFIX = ".9apx"
 def deploy_server(
     server_config: dict, rfm_contents: str, weather_data, grip_data
 ) -> bool:
+    logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
     mod_info = server_config["mod"]["mod"]
@@ -217,6 +219,8 @@ def run_modmgr_build(server_root_path: str, pkg_info_path: str):
         f"-b{pkg_info_path}",
         "0",
     ]
+
+    logging.info("Running modmgr build {}".format(cmd_line))
     build = subprocess.Popen(
         cmd_line,
         shell=False,
@@ -235,6 +239,7 @@ def run_modmgr_install(server_root_path: str, pkg_path: str):
         "-q",
         f"-i{pkg_path}",
     ]
+    logging.info("Running modmgr install {}".format(cmd_line))
     build = subprocess.Popen(
         cmd_line, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -404,6 +409,7 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
         + join(source_path, "*.*")
     )
 
+    logging.info("Creating an mas file {}".format(cmd_line))
     build = subprocess.getstatusoutput(cmd_line)
     # keep casing
     lowercase_path = join(root_path, "build", target_path.lower())
