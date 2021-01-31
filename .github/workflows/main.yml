@@ -35,15 +35,9 @@ jobs:
         
       - name: Create _pth file according to specification
         run: printf "python39.zip\n.\nimport site" > /home/runner/work/reciever/apx-build/python39._pth
-
-      - name: Create bat for easy execution
-        run: printf "python.exe reciever.py" > /home/runner/work/reciever/apx-build/reciever.bat
         
       - name: Add pth to folder
         run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip python39._pth
-    
-      - name: Add bat to folder
-        run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip reciever.bat
         
       - name: Add reciever components to zip
         run: cd /home/runner/work/reciever/reciever/ && zip -ur /home/runner/work/reciever/apx-build/release.zip *
@@ -67,5 +61,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: /home/runner/work/reciever/apx-build/release.zip
-          asset_name: release.zip
+          asset_name: reciever.zip
           asset_content_type: application/zip
