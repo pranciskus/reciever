@@ -6,7 +6,6 @@ from rf2.startup import stop_server, oneclick_start_server
 from rf2.status import get_server_status
 from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import deploy_server, VERSION_SUFFIX
-from rf2.results import get_results, get_replays
 from rf2.setup import install_server
 from rf2.util import create_config
 from os.path import join, exists, basename
@@ -165,13 +164,6 @@ def deploy_server_config():
 
     got = deploy_server(get_server_config(), rfm_contents, weather, grip)
     return json_response({"is_ok": False})
-
-
-@app.route("/results", methods=["GET"])
-def get_server_results():
-    results = get_results(get_server_config())
-    replays = get_replays(get_server_config())
-    return json_response({"results": results, "replays": replays})
 
 
 @app.route("/process_results", methods=["GET"])
