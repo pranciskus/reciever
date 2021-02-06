@@ -27,7 +27,6 @@ def deploy_server(
     root_path = server_config["server"]["root_path"]
 
     restore_vanilla(server_config)
-    root_path = server_config["server"]["root_path"]
     # build vehicle mods
     for workshop_id, vehicle in vehicles.items():
         run_steamcmd(server_config, "add", workshop_id)
@@ -221,7 +220,7 @@ def build_mod(
 
 
 def run_modmgr_build(server_root_path: str, pkg_info_path: str):
-    modmgr_path = join(server_root_path, "Bin32\\ModMgr.exe")
+    modmgr_path = join(server_root_path, "Bin64\\ModMgr.exe")
     cmd_line = [
         modmgr_path,
         f"-c{server_root_path}",
@@ -238,10 +237,16 @@ def run_modmgr_build(server_root_path: str, pkg_info_path: str):
         stderr=subprocess.PIPE,
     )
 
+    return_code = build.wait()
+
+    logging.info(
+        "ModMgr command {} returned error code {}".format(cmd_line, return_code)
+    )
+
 
 def run_modmgr_install(server_root_path: str, pkg_path: str):
     sleep(2)  # TODO: Make sure install actions are actually done
-    modmgr_path = join(server_root_path, "Bin32\\ModMgr.exe")
+    modmgr_path = join(server_root_path, "Bin64\\ModMgr.exe")
     cmd_line = [
         modmgr_path,
         f"-c{server_root_path}",
@@ -251,6 +256,10 @@ def run_modmgr_install(server_root_path: str, pkg_path: str):
     logging.info("Running modmgr install {}".format(cmd_line))
     build = subprocess.Popen(
         cmd_line, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    return_code = build.wait()
+    logging.info(
+        "ModMgr command {} returned error code {}".format(cmd_line, return_code)
     )
 
 
@@ -408,6 +417,9 @@ def create_mas(server_config: dict, component_info: dict, add_version_suffix=Fal
         target_path = join(build_path, name + ".mas")
     else:
         target_path = join(build_path, name + "_v" + version + VERSION_SUFFIX + ".mas")
+    if exists(target_path):
+        unlink(target_path)
+        logging.info("Removed old mas file on {}".format(target_path))
     build_mas(server_config, component_path, target_path)
 
 
@@ -419,7 +431,7 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
 
     files_to_add = listdir(source_path)
     cmd_line = (
-        f"{root_path}\\server\\Bin32\\ModMgr.exe -m"
+        f"{root_path}\\server\\Bin64\\ModMgr.exe -m"
         + target_path
         + " "
         + join(source_path, "*.*")

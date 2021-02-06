@@ -41,6 +41,9 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
                 break
             if out != "":
                 sys.stdout.flush()
+        logging.info(
+            "Shell command {} returned error code {}".format(command_line, p.returncode)
+        )
         return p.returncode == 0
     except Exception as e:
         logging.error("Recieved error while executing steamcmd {}".format(e))
@@ -78,7 +81,7 @@ def install_mod(server_config: dict, id: str) -> bool:
         copy_results.append(rfmod_target_full_path)
 
     # install the mod into rf2 itself
-    mod_mgr_cmdline = f"{root_path}\\server\\Bin32\\ModMgr.exe -c{root_path}\\server\\"
+    mod_mgr_cmdline = f"{root_path}\\server\\Bin64\\ModMgr.exe -c{root_path}\\server\\"
 
     install_results = []
     for rf_mod in copy_results:
