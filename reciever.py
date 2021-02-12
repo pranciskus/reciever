@@ -212,6 +212,19 @@ def get_lockfile():
     )
 
 
+@app.route("/log", methods=["GET"])
+@check_api_key
+def get_log_file():
+    server_config = get_server_config()
+    root_path = server_config["server"]["root_path"]
+    logfile_path = join(root_path, "reciever.log")
+    if not exists(logfile_path):
+        abort(404)
+    return send_file(
+        logfile_path, attachment_filename="reciever.log", as_attachment=True
+    )
+
+
 @app.route("/unlock", methods=["POST"])
 def initial_setup_unlock():
     if request.method == "POST":
