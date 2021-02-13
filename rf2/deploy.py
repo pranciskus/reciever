@@ -339,6 +339,7 @@ def restore_vanilla(server_config: dict) -> bool:
     """
     root_path = server_config["server"]["root_path"]
     server_root_path = join(root_path, "server")
+    reciever_root_path = join(root_path, "reciever")
 
     # remove steam workshop items
     steam_packages_path = join(
@@ -351,8 +352,14 @@ def restore_vanilla(server_config: dict) -> bool:
     # Overwrite player.json and multiplayer.json
     user_data_path = join(server_root_path, "UserData")
     profile_path = join(user_data_path, "player")
-    copy("templates/player.JSON", join(profile_path, "player.JSON"))
-    copy("templates/Multiplayer.JSON", join(profile_path, "Multiplayer.JSON"))
+    copy(
+        join(reciever_root_path, "templates/player.JSON"),
+        join(profile_path, "player.JSON"),
+    )
+    copy(
+        join(reciever_root_path, "templates/Multiplayer.JSON"),
+        join(profile_path, "Multiplayer.JSON"),
+    )
     overwrites = server_config["mod"]["server"]["overwrites"]
     for overwrite_file, overwrite_options in overwrites.items():
         full_path = join(profile_path, overwrite_file)
@@ -386,8 +393,12 @@ def restore_vanilla(server_config: dict) -> bool:
 
     # Overwrite installed an manifests
     template_copy_paths = {
-        "templates/Installed": join(server_root_path, "Installed"),
-        "templates/Manifests": join(server_root_path, "Manifests"),
+        join(reciever_root_path, "templates/Installed"): join(
+            server_root_path, "Installed"
+        ),
+        join(reciever_root_path, "templates/Manifests"): join(
+            server_root_path, "Manifests"
+        ),
     }
 
     for path, target_path in template_copy_paths.items():
