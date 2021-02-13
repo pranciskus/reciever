@@ -8,6 +8,7 @@ from json import loads, dumps, load, dump
 import re
 from distutils.version import LooseVersion
 import logging
+from rf2.util import get_server_port
 
 VERSION_SUFFIX = ".9apx"
 
@@ -352,12 +353,12 @@ def restore_vanilla(server_config: dict) -> bool:
     # Overwrite player.json and multiplayer.json
     user_data_path = join(server_root_path, "UserData")
     profile_path = join(user_data_path, "player")
-    copy(
-        join(reciever_root_path, "templates/player.JSON"),
+    copied_player = copy(
+        join(reciever_root_path, "templates", "player.JSON"),
         join(profile_path, "player.JSON"),
     )
     copy(
-        join(reciever_root_path, "templates/Multiplayer.JSON"),
+        join(reciever_root_path, "templates", "Multiplayer.JSON"),
         join(profile_path, "Multiplayer.JSON"),
     )
     overwrites = server_config["mod"]["server"]["overwrites"]
@@ -369,6 +370,12 @@ def restore_vanilla(server_config: dict) -> bool:
                 parsed[option][option_key] = option_value
         with open(full_path, "w") as overwrite_file_handle:
             overwrite_file_handle.write(dumps(parsed, indent=4, separators=(",", ": ")))
+
+    web_ui_port = int(get_server_port(server_config))
+    if web_ui_port == 5397:
+        error_text = "The server setting WebUI port is still on the default value. Aborting deployment."
+        logging.fatal(error_text)
+        raise Exception(error_text)
 
     folder_paths = {
         join(user_data_path, "Replays"): [],
@@ -393,10 +400,10 @@ def restore_vanilla(server_config: dict) -> bool:
 
     # Overwrite installed an manifests
     template_copy_paths = {
-        join(reciever_root_path, "templates/Installed"): join(
+        join(reciever_root_path, "templates", "Installed"): join(
             server_root_path, "Installed"
         ),
-        join(reciever_root_path, "templates/Manifests"): join(
+        join(reciever_root_path, "templates", "Manifests"): join(
             server_root_path, "Manifests"
         ),
     }
@@ -408,6 +415,7 @@ def restore_vanilla(server_config: dict) -> bool:
 
         logging.info("Applying template from {} to {}".format(path, target_path))
         copytree(path, target_path)
+    raise Exception("")
     # Update the server itself using steam
     run_steamcmd(server_config, "update")
 
