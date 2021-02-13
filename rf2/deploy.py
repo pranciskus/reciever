@@ -1,5 +1,5 @@
 from os.path import join, exists
-from os import listdir, mkdir, getenv, unlink
+from os import listdir, mkdir, getenv, unlink, stat
 from shutil import copy, rmtree, copytree, move
 from rf2.steam import run_steamcmd, install_mod
 import subprocess
@@ -218,6 +218,9 @@ def build_mod(
     server_root_path = join(root_path, "server")
     run_modmgr_build(server_root_path, pkg_info_path)
     run_modmgr_install(server_root_path, rfmod_path)
+    if not exists rfmod_path or stat(rfmod_path).st_size == 0:
+        logging.fatal("The deployment failed. The mod is either not existing or empty. Check your keys and rfm settings.")
+        raise Exception("Deployment failed")
 
 
 def run_modmgr_build(server_root_path: str, pkg_info_path: str):
