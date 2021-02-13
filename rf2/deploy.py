@@ -415,7 +415,6 @@ def restore_vanilla(server_config: dict) -> bool:
 
         logging.info("Applying template from {} to {}".format(path, target_path))
         copytree(path, target_path)
-    raise Exception("")
     # Update the server itself using steam
     run_steamcmd(server_config, "update")
 
