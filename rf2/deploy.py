@@ -466,3 +466,64 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
     lowercase_path = join(root_path, "build", target_path.lower())
     move(lowercase_path, target_path)
     return build[0] != 0
+
+
+def find_location_properties(server_config: dict, mod_name: str, desired_layout: str):
+    file_map = find_weather_and_gdb_files(server_config, mod_name)
+    needles = {
+        "TrackName": r"TrackName\s+=\s+([^\n]+)",
+        "SettingsFolder": r"SettingsFolder\s+=\s+([^\n]+)",
+    }
+    property_map = {}
+    for key, files in file_map.items():
+        property_map[key] = {}
+        gdb_matches = list(filter(lambda x: ".gdb" in x.lower(), files))
+        if len(gdb_matches) == 0:
+            raise Exception("No GDB file found")
+
+        gdb_file = join(key, gdb_matches[0])
+
+        with open(gdb_file, "r") as file:
+            content = file.read()
+            for property, pattern in needles.items():
+                matches = re.findall(pattern, content, re.MULTILINE)
+                if matches is not None and len(matches) == 1:
+                    property_map[key][property] = matches[0]
+
+    for key, properties in property_map.items():
+        if properties["TrackName"] == desired_layout:
+            return properties
+    return None
+
+
+def find_weather_and_gdb_files(server_config: dict, mod_name):
+    root_path = server_config["server"]["root_path"]
+    modmgr_path = join(root_path, "server", "Bin64\\ModMgr.exe")
+    mod_root_path = join(root_path, "server", "Installed", "locations", mod_name)
+    mod_versions = listdir(mod_root_path)
+    server_root_path = join(root_path, "server")
+    file_map = {}
+    for version in mod_versions:
+        mod_version_path = join(mod_root_path, version)
+        files = listdir(mod_version_path)
+        for file in files:
+            if ".mas" in file:
+                full_mas_path = join(mod_version_path, file)
+                extraction_path = join(root_path, "build", file)
+                if not exists(extraction_path):
+                    mkdir(extraction_path)
+                cmd_line_gdb = '{} -x{} "*.gdb" -o{}'.format(
+                    modmgr_path, full_mas_path, extraction_path
+                )
+                cmd_line_wet = '{} -x{} "*.wet" -o{}'.format(
+                    modmgr_path, full_mas_path, extraction_path
+                )
+                subprocess.check_output(cmd_line_gdb)
+                subprocess.check_output(cmd_line_wet)
+                files_collected = listdir(extraction_path)
+                if len(files_collected) == 0:
+                    rmtree(extraction_path)
+                else:
+                    file_map[extraction_path] = files_collected
+
+    return file_map
