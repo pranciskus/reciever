@@ -88,6 +88,8 @@ def create_conditions(
 ) -> bool:
     if conditions is None:
         # conditions may be not configured at all
+
+        logging.info("Omitting grip injection as there is nothing submitted")
         return True
 
     server_root = join(root_path, "server")
