@@ -75,6 +75,19 @@ def get_server_port(server_config: dict) -> int:
     return content["Miscellaneous"]["WebUI port"]
 
 
+def get_max_players(server_config: dict) -> int:
+    player_json_path = join(
+        server_config["server"]["root_path"],
+        "server",
+        "userData",
+        "player",
+        "multiplayer.JSON",
+    )
+
+    content = load(open(player_json_path, "r"))
+    return content["Multiplayer Server Options"]["Max MP Players"]
+
+
 def get_free_tcp_port(max_tries=10, default_port=8000):
     port = default_port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
