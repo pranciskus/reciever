@@ -149,20 +149,15 @@ def deploy_server_config():
     except JSONDecodeError:
         return json_response({"is_ok": False, "syntax_failed": True})
 
-    # apply weather and grip conditions
-    weather = None
+    # grip conditions
     grip = {}
     for key, value in request.files.items():
-        if "RealRoad" in key:
-            # it is a grip file
-            grip[key] = value
-        if key == "weather":
-            weather = value
+        grip[key] = value
     # paste the config
     with open("mod.json", "w") as config:
         config.write(config_contents)
 
-    got = deploy_server(get_server_config(), rfm_contents, weather, grip)
+    got = deploy_server(get_server_config(), rfm_contents, grip)
     return json_response({"is_ok": False})
 
 
