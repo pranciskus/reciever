@@ -218,8 +218,10 @@ def build_mod(
     server_root_path = join(root_path, "server")
     run_modmgr_build(server_root_path, pkg_info_path)
     run_modmgr_install(server_root_path, rfmod_path)
-    if not exists rfmod_path or stat(rfmod_path).st_size == 0:
-        logging.fatal("The deployment failed. The mod is either not existing or empty. Check your keys and rfm settings.")
+    if not exists(rfmod_path) or stat(rfmod_path).st_size == 0:
+        logging.fatal(
+            "The deployment failed. The mod is either not existing or empty. Check your keys and rfm settings."
+        )
         raise Exception("Deployment failed")
 
 
