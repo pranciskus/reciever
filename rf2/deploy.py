@@ -13,9 +13,7 @@ from rf2.util import get_server_port
 VERSION_SUFFIX = ".9apx"
 
 
-def deploy_server(
-    server_config: dict, rfm_contents: str, weather_data, grip_data
-) -> bool:
+def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
@@ -42,10 +40,17 @@ def deploy_server(
         used_track = track
         run_steamcmd(server_config, "add", workshop_id)
         install_mod(server_config, workshop_id)
+
+        create_conditions(
+            root_path,
+            grip_data,
+            conditions,
+            track["component"]["name"],
+            track["layout"],
+        )
         # TODO cmd mods are not supported yet.
     build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
 
-    create_conditions(root_path, weather_data, grip_data, conditions)
     # set real versions
     event_config = server_config["mod"]
     for _, vehicle in event_config["cars"].items():
@@ -78,31 +83,34 @@ def deploy_server(
     return True
 
 
-def create_conditions(root_path: str, weather, grip, conditions) -> bool:
+def create_conditions(
+    root_path: str, grip, conditions, mod_name: str, layout: str
+) -> bool:
     if conditions is None:
         # conditions may be not configured at all
         return True
 
     server_root = join(root_path, "server")
-    conditions_root = conditions["conditionsRoot"]
-    weather_file_name = conditions["weatherTarget"]
-    condition_files_root_path = join(
-        server_root, "UserData", "player", "Settings", conditions_root
-    )
-    if not exists(condition_files_root_path):
-        mkdir(condition_files_root_path)
-    # save weather file
-    weather_file_path = join(condition_files_root_path, weather_file_name)
-    weather.save(weather_file_path)
 
-    with open(weather_file_path, "r") as weather_file:
+    properties = find_location_properties(root_path, mod_name, layout)
+    condition_files_root_path = join(server_root, "UserData", "player", "Settings")
+    weather_file_parent = join(condition_files_root_path, properties["SettingsFolder"])
+    if not exists(weather_file_parent):
+        mkdir(weather_file_parent)
+    weather_file_path = join(
+        weather_file_parent, properties["WET"].replace(".WET", "s.WET")
+    )
+    weather_template = properties["WET_SOURCE"]
+
+    with open(weather_template, "r") as weather_file:
         content = weather_file.read()
         for key, value in grip.items():
-            print(key, value)
             content = re.sub(
-                r"{}=\".+\"".format(key), '{}="{}"'.format(key, key + ".rrbin"), content
+                r"RealRoad{}=\".+\"".format(key),
+                'RealRoad{}="user:{}"'.format(key, key + ".rrbin"),
+                content,
             )
-            grip_file_path = join(condition_files_root_path, key + ".rrbin")
+            grip_file_path = join(weather_file_parent, key + ".rrbin")
             value.save(grip_file_path)
 
         with open(weather_file_path, "w") as weather_write_handle:
@@ -468,8 +476,8 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
     return build[0] != 0
 
 
-def find_location_properties(server_config: dict, mod_name: str, desired_layout: str):
-    file_map = find_weather_and_gdb_files(server_config, mod_name)
+def find_location_properties(root_path: str, mod_name: str, desired_layout: str):
+    file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
         "TrackName": r"TrackName\s+=\s+([^\n]+)",
         "SettingsFolder": r"SettingsFolder\s+=\s+([^\n]+)",
@@ -478,8 +486,12 @@ def find_location_properties(server_config: dict, mod_name: str, desired_layout:
     for key, files in file_map.items():
         property_map[key] = {}
         gdb_matches = list(filter(lambda x: ".gdb" in x.lower(), files))
-        if len(gdb_matches) == 0:
-            raise Exception("No GDB file found")
+        wet_matches = list(filter(lambda x: ".wet" in x.lower(), files))
+        if len(gdb_matches) != 1:
+            raise Exception("No suitable GDB file found")
+
+        if len(wet_matches) != 1:
+            raise Exception("No suitable WET file found")
 
         gdb_file = join(key, gdb_matches[0])
 
@@ -489,15 +501,25 @@ def find_location_properties(server_config: dict, mod_name: str, desired_layout:
                 matches = re.findall(pattern, content, re.MULTILINE)
                 if matches is not None and len(matches) == 1:
                     property_map[key][property] = matches[0]
+                    logging.info(
+                        'Based on file situation, we identified "{}" as a property for {}.'.format(
+                            matches[0], property
+                        )
+                    )
+
+        property_map[key]["WET"] = wet_matches[0]
+        property_map[key]["WET_SOURCE"] = join(key, wet_matches[0])
 
     for key, properties in property_map.items():
         if properties["TrackName"] == desired_layout:
+            logging.info(
+                "Using data {} for weather injection.".format(properties["TrackName"])
+            )
             return properties
     return None
 
 
-def find_weather_and_gdb_files(server_config: dict, mod_name):
-    root_path = server_config["server"]["root_path"]
+def find_weather_and_gdb_files(root_path: str, mod_name):
     modmgr_path = join(root_path, "server", "Bin64\\ModMgr.exe")
     mod_root_path = join(root_path, "server", "Installed", "locations", mod_name)
     mod_versions = listdir(mod_root_path)
@@ -518,8 +540,12 @@ def find_weather_and_gdb_files(server_config: dict, mod_name):
                 cmd_line_wet = '{} -x{} "*.wet" -o{}'.format(
                     modmgr_path, full_mas_path, extraction_path
                 )
+                cmd_line_grip = '{} -x{} "*.rrbin" -o{}'.format(
+                    modmgr_path, full_mas_path, extraction_path
+                )
                 subprocess.check_output(cmd_line_gdb)
                 subprocess.check_output(cmd_line_wet)
+                subprocess.check_output(cmd_line_grip)
                 files_collected = listdir(extraction_path)
                 if len(files_collected) == 0:
                     rmtree(extraction_path)
