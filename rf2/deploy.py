@@ -1,4 +1,4 @@
-from os.path import join, exists
+from os.path import join, exists, basename
 from os import listdir, mkdir, getenv, unlink, stat
 from shutil import copy, rmtree, copytree, move
 from rf2.steam import run_steamcmd, install_mod
@@ -479,6 +479,9 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
 
 
 def find_location_properties(root_path: str, mod_name: str, desired_layout: str):
+    default_wet_file = join(root_path, "reciever", "templates", "WEATHER.wet")
+    if not exists(default_wet_file):
+        raise Exception("The default weather template is missing")
     file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
         "TrackName": r"TrackName\s+=\s+([^\n]+)",
@@ -492,10 +495,8 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         if len(gdb_matches) != 1:
             raise Exception("No suitable GDB file found")
 
-        if len(wet_matches) != 1:
-            raise Exception("No suitable WET file found")
-
         gdb_file = join(key, gdb_matches[0])
+        property_map[key]["GDB_SOURCE"] = gdb_file
 
         with open(gdb_file, "r") as file:
             content = file.read()
@@ -509,14 +510,41 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                         )
                     )
 
-        property_map[key]["WET"] = wet_matches[0]
-        property_map[key]["WET_SOURCE"] = join(key, wet_matches[0])
+        if len(wet_matches) == 1:
+            logging.info(
+                "Found WET file. Using WET={}, WET_SOURCE={}".format(
+                    wet_matches[0], join(key, wet_matches[0])
+                )
+            )
+            property_map[key]["WET"] = wet_matches[0]
+            property_map[key]["WET_SOURCE"] = join(key, wet_matches[0])
 
     for key, properties in property_map.items():
         if properties["TrackName"] == desired_layout:
             logging.info(
                 "Using data {} for weather injection.".format(properties["TrackName"])
             )
+            # if there is no weather file -> create
+            if "WET" not in properties:
+                # create wet source
+                # We assume that the WET file and the GDB file share the same name
+                wet_filename = (
+                    basename(property_map[key]["GDB_SOURCE"])
+                    .replace(".gdb", ".WET")
+                    .replace(".GDB", ".WET")
+                )
+                artifical_wet_file_path = join(key, wet_filename)
+
+                # Copy template file
+                copy(default_wet_file, artifical_wet_file_path)
+                properties["WET"] = wet_filename
+                properties["WET_SOURCE"] = artifical_wet_file_path
+
+                logging.info(
+                    "No WET file found. Creating one for WET={}, WET_SOURCE={}".format(
+                        wet_filename, artifical_wet_file_path
+                    )
+                )
             return properties
     return None
 
