@@ -546,6 +546,11 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                     )
                 )
             return properties
+    logging.warn(
+        "There is no suitable GDB content found. The desired layout was {}".format(
+            desired_layout
+        )
+    )
     return None
 
 
