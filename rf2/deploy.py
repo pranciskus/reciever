@@ -79,6 +79,88 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     with open(path, "w") as file:
         file.write(dumps(event_config))
 
+    # adjust settings length
+
+    multiplayer_json_path = join(
+        root_path, "server", "UserData", "player", "Multiplayer.JSON"
+    )
+    player_json_path = join(root_path, "server", "UserData", "player", "player.JSON")
+    multiplayer_json = None
+    player_json = None
+
+    with open(player_json_path, "r") as file:
+        player_json = load(file)
+
+    with open(multiplayer_json_path, "r") as file:
+        multiplayer_json = load(file)
+
+    for session in event_config["sessions"]:
+        type = session["type"]
+        length = session["length"]
+        laps = session["laps"]
+        start = session["start"]
+        time_after_midnight = None
+        if start is not None:
+            time_parts = start.split(":")
+            time_after_midnight = int(time_parts[0]) * 60 + int(time_parts[0])
+
+        if "P" in type and "1" not in type:
+            logging.warn("Due to unclear configuration, only Practice 1 is allowed")
+            raise Exception("Due to unclear configuration, only Practice 1 is allowed")
+
+        if type == "P1" and laps > 0 and length == 0:
+            # if laps are set for practice, cause an error
+            logging.warn("Only time length is allowed for practice")
+            raise Exception("Only time length is allowed for practice")
+
+        if type == "P1":
+            # set practice 1 length
+            if time_after_midnight:
+                player_json["Race Conditions"][
+                    "Practice1StartingTime"
+                ] = time_after_midnight
+            multiplayer_json["Multiplayer Server Options"]["Practice 1 Time"] = length
+
+        if type == "Q1":
+            if time_after_midnight:
+                player_json["Race Conditions"][
+                    "QualifyingStartingTime"
+                ] = time_after_midnight
+            if laps == 0:
+                multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = 255
+
+            multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = laps
+            multiplayer_json["Multiplayer Server Options"]["Qualifying Time"] = length
+
+        if type == "WU":
+            if time_after_midnight:
+                player_json["Race Conditions"][
+                    "WarmupStartingTime"
+                ] = time_after_midnight
+            multiplayer_json["Multiplayer Server Options"]["Warmup Time"] = length
+
+        if type == "R1":
+            # race settings
+            if time_after_midnight:
+                player_json["Race Conditions"][
+                    "MULTI RaceStartingTime"
+                ] = time_after_midnight
+
+            if laps > 0:
+                player_json["Game Options"]["MULTI Race Finish Criteria"] = 1
+                player_json["Game Options"]["MULTI Race Laps"] = laps
+            else:
+                player_json["Game Options"]["MULTI Race Finish Criteria"] = 2
+                player_json["Game Options"]["MULTI Race Time"] = length
+
+    with open(player_json_path, "w") as file:
+        logging.info("Updating player.json to represent session dimensions")
+        dump(player_json, file, indent=4, separators=(",", ": "))
+
+    with open(multiplayer_json_path, "w") as file:
+        logging.info("Updating multiplayer.json to represent session dimensions")
+        dump(multiplayer_json, file, indent=4, separators=(",", ": "))
+
     logging.info("Finished server deploy")
     return True
 
