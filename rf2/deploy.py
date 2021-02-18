@@ -100,9 +100,14 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
         laps = session["laps"]
         start = session["start"]
         time_after_midnight = None
-        if start is not None:
+        if start and ":" in start:
             time_parts = start.split(":")
-            time_after_midnight = int(time_parts[0]) * 60 + int(time_parts[0])
+            time_after_midnight = int(time_parts[0]) * 60 + int(time_parts[1])
+            logging.info(
+                "Session {} will recieve a start time: {} -> {} minutes after midnight".format(
+                    type, start, time_after_midnight
+                )
+            )
 
         if "P" in type and "1" not in type:
             logging.warn("Due to unclear configuration, only Practice 1 is allowed")
