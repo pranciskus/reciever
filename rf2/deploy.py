@@ -150,7 +150,10 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
                 player_json["Race Conditions"][
                     "MULTI RaceStartingTime"
                 ] = time_after_midnight
-
+            # Insert starting type, if a race session is present
+            player_json["Race Conditions"]["MULTI Formation Lap"] = event_config[
+                "start_type"
+            ]
             if laps > 0:
                 player_json["Game Options"]["MULTI Race Finish Criteria"] = 1
                 player_json["Game Options"]["MULTI Race Laps"] = laps
