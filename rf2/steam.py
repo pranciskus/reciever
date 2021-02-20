@@ -6,8 +6,8 @@ import logging
 
 STEAMCMDCOMMANDS = {
     "add": f"+login anonymous +workshop_download_item 365960",
-    "update": f"+login anonymous +app_update 400300 +quit",
-    "install": f"+login anonymous +app_update 400300 +quit",
+    "update": f"+login anonymous +app_update 400300 ",
+    "install": f"+login anonymous +app_update 400300 ",
 }
 
 
@@ -22,9 +22,10 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     server_path = join(root_path, "server")
 
     if command == "install" or command == "update":
+        branch = server_config["mod"]["branch"]
         command_line = (
             steam_path + f" +force_install_dir {server_path} "
-            " " + STEAMCMDCOMMANDS[command]
+            " " + STEAMCMDCOMMANDS[command] + " -beta " + branch
         )
     else:
         command_line = steam_path + " " + STEAMCMDCOMMANDS[command]
