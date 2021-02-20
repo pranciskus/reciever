@@ -75,6 +75,19 @@ def get_server_port(server_config: dict) -> int:
     return content["Miscellaneous"]["WebUI port"]
 
 
+def get_public_http_server_port(server_config: dict) -> int:
+    multiplayer_json = join(
+        server_config["server"]["root_path"],
+        "server",
+        "userData",
+        "player",
+        "Multiplayer.JSON",
+    )
+
+    content = load(open(multiplayer_json, "r"))
+    return content["Multiplayer General Options"]["HTTP Server Port"]
+
+
 def get_max_players(server_config: dict) -> int:
     player_json_path = join(
         server_config["server"]["root_path"],
