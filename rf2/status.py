@@ -3,7 +3,7 @@ from os.path import join, isfile
 from time import time
 from requests import get
 from json import load
-from rf2.util import get_server_port
+from rf2.util import get_server_port, get_public_http_server_port
 
 
 def get_server_status(server_config: dict) -> dict:
@@ -29,6 +29,11 @@ def get_server_status(server_config: dict) -> dict:
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
         standings_raw = get(target_url + "/rest/watch/standings").json()
+        build_info_raw = get(
+            "http://localhost:{}/SessionInfo".format(
+                get_public_http_server_port(server_config)
+            )
+        ).json()
         result = {
             "track": status_raw["serverName"],
             "name": status_raw["trackName"],
@@ -40,8 +45,10 @@ def get_server_status(server_config: dict) -> dict:
             "session": status_raw["session"],
             "vehicles": standings_raw,
             "keys": is_unlocked,
+            "build": build_info_raw["build"],
         }
-    except:
+    except Exception as e:
+        print(e)
         result = None
 
     if not result:
