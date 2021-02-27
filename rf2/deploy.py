@@ -169,6 +169,12 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
         logging.info("Updating multiplayer.json to represent session dimensions")
         dump(multiplayer_json, file, indent=4, separators=(",", ": "))
 
+    if event_config["real_weather"]:
+        temp_offset = event_config["temp_offset"]
+        logging.info(
+            "The server will use real weather. Offset = {} Celsius".format(temp_offset)
+        )
+
     logging.info("Finished server deploy")
     return True
 
@@ -575,7 +581,10 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
     file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
         "TrackName": r"TrackName\s+=\s+([^\n]+)",
+        "Location": r"Location\s+=\s+([^\n]+)",
         "SettingsFolder": r"SettingsFolder\s+=\s+([^\n]+)",
+        "Latitude": r"Latitude\s+=\s+(\d+\.\d+)",
+        "Longitude": r"Longitude\s+=\s+(\d+\.\d+)",
     }
     property_map = {}
     for key, files in file_map.items():
@@ -635,6 +644,11 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                         wet_filename, artifical_wet_file_path
                     )
                 )
+            # write relevant gdb values into a file
+            properties_file = join(root_path, "reciever", "geo.json")
+            with open(properties_file, "w") as file:
+                file.write(dumps(properties))
+                logging.info("Wrote geo.json")
             return properties
     logging.warn(
         "There is no suitable GDB content found. The desired layout was {}".format(
