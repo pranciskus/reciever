@@ -4,6 +4,7 @@ from time import time
 from requests import get
 from json import load
 from rf2.util import get_server_port, get_public_http_server_port
+import logging
 
 
 def get_server_status(server_config: dict) -> dict:
@@ -25,6 +26,11 @@ def get_server_status(server_config: dict) -> dict:
         "ServerUnlock.bin",
     )
     is_unlocked = isfile(unlock_path)
+    release_file_path = join(
+        server_config["server"]["root_path"], "reciever", "release"
+    )
+
+    reciever_release = open(release_file_path, "r").read()
     result = None
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
@@ -46,11 +52,12 @@ def get_server_status(server_config: dict) -> dict:
             "vehicles": standings_raw,
             "keys": is_unlocked,
             "build": build_info_raw["build"],
+            "release": reciever_release,
         }
     except Exception as e:
-        print(e)
+        logging.error(e)
         result = None
 
     if not result:
-        result = {"not_running": True, "keys": is_unlocked}
+        result = {"not_running": True, "keys": is_unlocked, "release": reciever_release}
     return result
