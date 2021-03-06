@@ -1,5 +1,4 @@
 from flask import Flask, request, Request, abort, send_file, jsonify, render_template
-from flask_caching import Cache
 from functools import wraps
 from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
@@ -16,17 +15,14 @@ from time import sleep, time
 from math import ceil
 from shutil import copytree
 from sys import exit
-import threading
 from pathlib import Path
 import hashlib
 import logging
 
+from threading import Thread, Lock
+from time import sleep
+
 app = Flask(__name__)
-config = {"DEBUG": True, "CACHE_TYPE": "simple", "CACHE_DEFAULT_TIMEOUT": 20}
-
-app.config.from_mapping(config)
-cache = Cache(app)
-
 recieved_status = None
 
 # @app.errorhandler(Exception)
@@ -91,10 +87,22 @@ def start_oneclick():
     return json_response({"is_ok": got}), 200
 
 
+last_status = None
+
+
+def poll_background_status():
+    while True:
+        got = get_server_status(get_server_config())
+        lock = Lock()
+        with lock:
+            global last_status
+            last_status = got
+        sleep(1)
+
+
 @app.route("/status", methods=["GET"])
 def status():
-    got = get_server_status(get_server_config())
-    return json_response(got), 200
+    return json_response(last_status), 200
 
 
 @app.route("/stop", methods=["GET"])
@@ -379,6 +387,9 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
         filename=log_path,
     )
+
+    status_thread = Thread(target=poll_background_status, daemon=True)
+    status_thread.start()
     app.run(
         host=webserver_config["host"],
         port=webserver_config["port"],
