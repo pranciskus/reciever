@@ -41,8 +41,8 @@ def get_server_status(server_config: dict) -> dict:
             )
         ).json()
         result = {
-            "track": status_raw["serverName"],
-            "name": status_raw["trackName"],
+            "track": status_raw["trackName"],
+            "name": status_raw["serverName"],
             "startEventTime": status_raw["startEventTime"],
             "currentEventTime": status_raw["currentEventTime"],
             "endEventTime": status_raw["endEventTime"],
