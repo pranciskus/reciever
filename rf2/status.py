@@ -17,6 +17,7 @@ def get_server_status(server_config: dict) -> dict:
     Returns:
         A dictionary containing the current server state
     """
+    from time import time
 
     target_url = "http://localhost:{}".format(get_server_port(server_config))
     unlock_path = join(
@@ -29,17 +30,17 @@ def get_server_status(server_config: dict) -> dict:
     release_file_path = join(
         server_config["server"]["root_path"], "reciever", "release"
     )
+    version_txt = join(
+        server_config["server"]["root_path"], "server", "Core", "Version.txt"
+    )
 
     reciever_release = open(release_file_path, "r").read()
     result = None
+
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
         standings_raw = get(target_url + "/rest/watch/standings").json()
-        build_info_raw = get(
-            "http://localhost:{}/SessionInfo".format(
-                get_public_http_server_port(server_config)
-            )
-        ).json()
+
         result = {
             "track": status_raw["trackName"],
             "name": status_raw["serverName"],
@@ -51,10 +52,11 @@ def get_server_status(server_config: dict) -> dict:
             "session": status_raw["session"],
             "vehicles": standings_raw,
             "keys": is_unlocked,
-            "build": build_info_raw["build"],
+            "build": open(version_txt).readlines()[0].strip(),
             "release": reciever_release,
         }
     except Exception as e:
+        print(e)
         logging.error(e)
         result = None
 
