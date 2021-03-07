@@ -146,6 +146,17 @@ def send_message():
     return json_response({"is_ok": True})
 
 
+def soft_lock_toggle():
+    config = get_server_config()
+    lock_path = join(config["server"]["root_path"], "reciever", "deploy.lock")
+    lock_exists = exists(lock_path)
+    if lock_exists:
+        unlink(lock_path)
+    else:
+        with open(lock_path, "w") as file:
+            file.write("Nope")
+
+
 @app.route("/deploy", methods=["POST"])
 def deploy_server_config():
     config_contents = request.form.get("config")
@@ -157,6 +168,7 @@ def deploy_server_config():
     except JSONDecodeError:
         return json_response({"is_ok": False, "syntax_failed": True})
 
+    soft_lock_toggle()
     # grip conditions
     grip = {}
     for key, value in request.files.items():
@@ -166,6 +178,8 @@ def deploy_server_config():
         config.write(config_contents)
 
     got = deploy_server(get_server_config(), rfm_contents, grip)
+
+    soft_lock_toggle()
     return json_response({"is_ok": False})
 
 

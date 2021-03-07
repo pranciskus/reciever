@@ -1,5 +1,5 @@
 import re
-from os.path import join, isfile
+from os.path import join, isfile, exists
 from time import time
 from requests import get
 from json import load
@@ -33,6 +33,9 @@ def get_server_status(server_config: dict) -> dict:
     version_txt = join(
         server_config["server"]["root_path"], "server", "Core", "Version.txt"
     )
+    deploy_lock_file_path = join(
+        server_config["server"]["root_path"], "reciever", "deploy.lock"
+    )
 
     reciever_release = open(release_file_path, "r").read()
     result = None
@@ -56,10 +59,15 @@ def get_server_status(server_config: dict) -> dict:
             "release": reciever_release,
         }
     except Exception as e:
-        print(e)
         logging.error(e)
         result = None
 
     if not result:
-        result = {"not_running": True, "keys": is_unlocked, "release": reciever_release}
+        result = {
+            "not_running": True,
+            "keys": is_unlocked,
+            "release": reciever_release,
+        }
+        if exists(deploy_lock_file_path):
+            result["in_deploy"] = True
     return result
