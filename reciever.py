@@ -17,7 +17,7 @@ from shutil import copytree
 from sys import exit
 from pathlib import Path
 import hashlib
-import logging
+from logging import error, handlers, Formatter, getLogger, DEBUG, INFO
 
 from threading import Thread, Lock
 from time import sleep
@@ -414,12 +414,15 @@ if __name__ == "__main__":
         print("Created installed template")
 
     log_path = join(root_path, "reciever.log")
-    logging.basicConfig(
-        format="%(asctime)s %(levelname)-8s %(message)s",
-        level=logging.DEBUG,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        filename=log_path,
+
+    log_handler = handlers.TimedRotatingFileHandler(log_path, when="D", interval=5)
+    formatter = Formatter(
+        "%(asctime)s %(levelname)s [%(process)d]: %(message)s", "%b %d %H:%M:%S"
     )
+    log_handler.setFormatter(formatter)
+    logger = getLogger()
+    logger.addHandler(log_handler)
+    logger.setLevel(DEBUG if webserver_config["debug"] else INFO)
 
     status_thread = Thread(target=poll_background_status, daemon=True)
     status_thread.start()
