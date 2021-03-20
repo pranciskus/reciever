@@ -18,7 +18,7 @@ from sys import exit
 from pathlib import Path
 import hashlib
 from logging import error, handlers, Formatter, getLogger, DEBUG, INFO
-
+from waitress import serve
 from threading import Thread, Lock
 from time import sleep
 
@@ -157,6 +157,9 @@ def soft_lock_toggle():
 
 @app.route("/deploy", methods=["POST"])
 def deploy_server_config():
+    if last_status is not None and "not_running" not in last_status:
+        abort(403)
+
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
     if not config_contents:
@@ -396,6 +399,7 @@ if __name__ == "__main__":
         create_config()
         exit(127)
     webserver_config = read_webserver_config()
+    debug = webserver_config["debug"]
 
     root_path = webserver_config["root_path"]
     reciever_path = join(root_path, "reciever")
@@ -417,17 +421,26 @@ if __name__ == "__main__":
 
     log_handler = handlers.TimedRotatingFileHandler(log_path, when="D", interval=5)
     formatter = Formatter(
-        "%(asctime)s %(levelname)s [%(process)d]: %(message)s", "%b %d %H:%M:%S"
+        "%(asctime)s %(filename)s:%(lineno)d %(levelname)s [%(process)d]: %(message)s",
+        "%b %d %H:%M:%S",
     )
     log_handler.setFormatter(formatter)
     logger = getLogger()
     logger.addHandler(log_handler)
-    logger.setLevel(DEBUG if webserver_config["debug"] else INFO)
+    logger.setLevel(DEBUG if debug else INFO)
 
     status_thread = Thread(target=poll_background_status, daemon=True)
     status_thread.start()
-    app.run(
-        host=webserver_config["host"],
-        port=webserver_config["port"],
-        debug=webserver_config["debug"],
-    )
+
+    if debug:
+        app.run(
+            host=webserver_config["host"],
+            port=webserver_config["port"],
+            debug=debug,
+        )
+    else:
+        serve(
+            app,
+            host=webserver_config["host"],
+            port=webserver_config["port"],
+        )
