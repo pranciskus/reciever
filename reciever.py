@@ -25,8 +25,6 @@ from time import sleep
 app = Flask(__name__)
 recieved_status = None
 
-# @app.errorhandler(Exception)
-
 
 def read_mod_config() -> dict:
     config = None
@@ -163,9 +161,27 @@ def deploy_server_config():
     rfm_contents = request.form.get("rfm_config")
     if not config_contents:
         abort(404)
+
+    server_config = get_server_config()
+    release_file_path = join(
+        server_config["server"]["root_path"], "reciever", "release"
+    )
     try:
-        loads(config_contents)
-    except JSONDecodeError:
+        got = loads(config_contents)
+        version = open(release_file_path, "r").read()
+        if "comp" not in got:
+            raise Exception("No compability info found. Aborting!")
+        if got["comp"] != version:
+            raise Exception(
+                "Invalid version! The reciever expected {}, but got {}".format(
+                    version, got["comp"]
+                )
+            )
+    except Exception as e:
+        logging.error(e)
+        return json_response({"is_ok": False, "syntax_failed": False})
+    except JSONDecodeError as e:
+        logging.error(e)
         return json_response({"is_ok": False, "syntax_failed": True})
 
     soft_lock_toggle()
@@ -177,7 +193,10 @@ def deploy_server_config():
     with open("mod.json", "w") as config:
         config.write(config_contents)
 
-    got = deploy_server(get_server_config(), rfm_contents, grip)
+    # reload the server config
+    server_config = get_server_config()
+
+    got = deploy_server(server_config, rfm_contents, grip)
 
     soft_lock_toggle()
     return json_response({"is_ok": False})
