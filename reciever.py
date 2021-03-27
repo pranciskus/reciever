@@ -31,7 +31,8 @@ from rf2.events.onFinishStatusChange import onFinishStatusChange
 from rf2.events.onPitStateChange import onPitStateChange
 from rf2.events.onLowSpeed import onLowSpeed
 from rf2.events.onShownFlagChange import onShownFlagChange
-
+from rf2.events.onStart import onStart
+from rf2.events.onStop import onStop
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -41,6 +42,8 @@ RECIEVER_HOOK_EVENTS = [
     onPitStateChange,
     onLowSpeed,
     onShownFlagChange,
+    onStart,
+    onStop,
 ]
 
 # load actual hooks
@@ -121,17 +124,26 @@ def poll_background_status(all_hooks):
         for event_hook in RECIEVER_HOOK_EVENTS:
             event_name = event_hook.__name__
             if got is not None and last_status is not None:
-                try:
-                    event_hooks_to_run = (
-                        all_hooks[event_name] if event_name in all_hooks else []
-                    )
-                    event_hook(
-                        last_status,
-                        got,
-                        event_hooks_to_run,
-                    )
-                except:
-                    pass
+                event_hooks_to_run = (
+                    all_hooks[event_name] if event_name in all_hooks else []
+                )
+                if "not_running" not in got:
+                    try:
+
+                        event_hook(
+                            last_status,
+                            got,
+                            event_hooks_to_run,
+                        )
+                    except:
+                        pass
+                else:
+                    if event_name == "onStop":
+                        event_hook(
+                            last_status,
+                            got,
+                            event_hooks_to_run,
+                        )
         last_status = got
         sleep(1)
 
