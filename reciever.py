@@ -22,6 +22,17 @@ from waitress import serve
 from threading import Thread, Lock
 from time import sleep
 
+# add hook events
+# hook events call the collected hooks and manipulate the infos from the old and new status, if needed
+from rf2.events.onCarCountChange import onCarCountChange
+from rf2.events.onDriverPenaltyChange import onDriverPenaltyChange
+from rf2.events.onSessionChange import onSessionChange
+
+RECIEVER_HOOK_EVENTS = [onCarCountChange, onDriverPenaltyChange, onSessionChange]
+
+# load actual hooks
+import hooks
+
 app = Flask(__name__)
 recieved_status = None
 
@@ -86,15 +97,29 @@ def start_oneclick():
 
 
 last_status = None
+from time import time
 
 
-def poll_background_status():
+def poll_background_status(all_hooks):
+    ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
     while True:
+        global last_status
         got = get_server_status(get_server_config())
-        lock = Lock()
-        with lock:
-            global last_status
-            last_status = got
+        for event_hook in RECIEVER_HOOK_EVENTS:
+            event_name = event_hook.__name__
+            if got is not None and last_status is not None:
+                try:
+                    event_hooks_to_run = (
+                        all_hooks[event_name] if event_name in all_hooks else []
+                    )
+                    event_hook(
+                        last_status,
+                        got,
+                        event_hooks_to_run,
+                    )
+                except:
+                    pass
+        last_status = got
         sleep(1)
 
 
@@ -428,8 +453,9 @@ if __name__ == "__main__":
     logger = getLogger()
     logger.addHandler(log_handler)
     logger.setLevel(DEBUG if debug else INFO)
-
-    status_thread = Thread(target=poll_background_status, daemon=True)
+    status_thread = Thread(
+        target=poll_background_status, args=(hooks.HOOKS,), daemon=True
+    )
     status_thread.start()
 
     if debug:
