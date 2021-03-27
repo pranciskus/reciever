@@ -10,7 +10,10 @@ def get_speed(drivers):
             y = driver["carVelocity"]["y"]
             z = driver["carVelocity"]["z"]
             speed = sqrt(x * x + y * y + z * z) * 3.6
-            result[driver["driverName"]] = speed
+            result[driver["driverName"]] = {
+                "speed": speed,
+                "lapDistance": driver["lapDistance"],
+            }
 
     return result
 
@@ -22,6 +25,6 @@ def onLowSpeed(oldStatus, newStatus, all_hooks):
         new_driver_speed = get_speed(new_vehicles)
 
         for driver, speed in new_driver_speed.items():
-            if speed < LOW_SPEED_THRESHOLD:
+            if speed["speed"] < LOW_SPEED_THRESHOLD:
                 for hook in all_hooks:
-                    hook(driver, speed)
+                    hook(driver, speed["speed"], speed["lapDistance"])
