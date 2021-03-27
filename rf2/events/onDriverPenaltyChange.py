@@ -1,9 +1,4 @@
-def get_penalty_map(drivers):
-    result = {}
-    for driver in drivers:
-        result[driver["driverName"]] = driver["penalties"]
-
-    return result
+from rf2.events import get_prop_map
 
 
 def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):
@@ -11,8 +6,8 @@ def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):
         old_vehicles = oldStatus["vehicles"]
         new_vehicles = newStatus["vehicles"]
 
-        old_driver_penalties = get_penalty_map(old_vehicles)
-        new_driver_penalties = get_penalty_map(new_vehicles)
+        old_driver_penalties = get_prop_map(old_vehicles, "penalties")
+        new_driver_penalties = get_prop_map(new_vehicles, "penalties")
 
         for driver, penalty_count in new_driver_penalties.items():
             old_penalty_count = (

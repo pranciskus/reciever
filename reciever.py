@@ -27,8 +27,21 @@ from time import sleep
 from rf2.events.onCarCountChange import onCarCountChange
 from rf2.events.onDriverPenaltyChange import onDriverPenaltyChange
 from rf2.events.onSessionChange import onSessionChange
+from rf2.events.onFinishStatusChange import onFinishStatusChange
+from rf2.events.onPitStateChange import onPitStateChange
+from rf2.events.onLowSpeed import onLowSpeed
+from rf2.events.onShownFlagChange import onShownFlagChange
 
-RECIEVER_HOOK_EVENTS = [onCarCountChange, onDriverPenaltyChange, onSessionChange]
+
+RECIEVER_HOOK_EVENTS = [
+    onCarCountChange,
+    onDriverPenaltyChange,
+    onSessionChange,
+    onFinishStatusChange,
+    onPitStateChange,
+    onLowSpeed,
+    onShownFlagChange,
+]
 
 # load actual hooks
 import hooks
