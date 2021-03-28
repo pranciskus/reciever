@@ -36,6 +36,7 @@ from rf2.events.onStop import onStop
 from rf2.events.onDriverSwap import onDriverSwap
 from rf2.events.onNewReplay import onNewReplay
 from rf2.events.onNewResult import onNewResult
+from rf2.events.onNewBestLapTime import onNewBestLapTime
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -50,6 +51,7 @@ RECIEVER_HOOK_EVENTS = [
     onDriverSwap,
     onNewReplay,
     onNewResult,
+    onNewBestLapTime,
 ]
 
 # load actual hooks
