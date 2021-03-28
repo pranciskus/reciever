@@ -2,9 +2,12 @@ import re
 from os.path import join, isfile, exists
 from time import time
 from requests import get
+from requests.exceptions import RequestException
 from json import load
 from rf2.util import get_server_port, get_public_http_server_port
 import logging
+from os import listdir
+from time import time
 
 
 def get_server_status(server_config: dict) -> dict:
@@ -37,6 +40,12 @@ def get_server_status(server_config: dict) -> dict:
         server_config["server"]["root_path"], "reciever", "deploy.lock"
     )
 
+    results_path = join(
+        server_config["server"]["root_path"], "server", "UserData", "Log", "Results"
+    )
+    replays_path = join(
+        server_config["server"]["root_path"], "server", "UserData", "Replays"
+    )
     reciever_release = open(release_file_path, "r").read()
     result = None
 
@@ -58,6 +67,8 @@ def get_server_status(server_config: dict) -> dict:
             "build": open(version_txt).readlines()[0].strip(),
             "release": reciever_release,
         }
+    except RequestException:
+        pass  # do nothing, if the server is not running
     except Exception as e:
         logging.error(e)
         result = None
@@ -70,4 +81,8 @@ def get_server_status(server_config: dict) -> dict:
         }
         if exists(deploy_lock_file_path):
             result["in_deploy"] = True
+
+    result["replays"] = list(filter(lambda x: "tmp" not in x, listdir(replays_path)))
+    result["results"] = list(filter(lambda x: "xml" in x, listdir(results_path)))
+
     return result
