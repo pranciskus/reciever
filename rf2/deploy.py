@@ -498,16 +498,23 @@ def restore_vanilla(server_config: dict) -> bool:
     }
 
     for folder_path, folders in folder_paths.items():
-        if exists(folder_path):
-            logging.info("Removed tree in {}".format(folder_path))
-            rmtree(folder_path)
-        logging.info("Creating folder in {}".format(folder_path))
-        mkdir(folder_path)
-        if len(folders) > 0:
-            for sub_folder in folders:
-                sub_folder_path = join(folder_path, sub_folder)
-                mkdir(sub_folder_path)
-                logging.info("Creating folder in {}".format(sub_folder_path))
+        if not exists(join(folder_path, "apx-keep.txt")):
+            if exists(folder_path):
+                logging.info("Removed tree in {}".format(folder_path))
+                rmtree(folder_path)
+            logging.info("Creating folder in {}".format(folder_path))
+            mkdir(folder_path)
+            if len(folders) > 0:
+                for sub_folder in folders:
+                    sub_folder_path = join(folder_path, sub_folder)
+                    mkdir(sub_folder_path)
+                    logging.info("Creating folder in {}".format(sub_folder_path))
+        else:
+            logging.info(
+                "Ignoring the folder {} as it's marked as to be kept.".format(
+                    folder_path
+                )
+            )
 
     # Overwrite installed an manifests
     template_copy_paths = {
