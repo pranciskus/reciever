@@ -59,18 +59,37 @@ def get_mod_files_from_steam(server_config: dict, id: str) -> list:
     source_path = join(
         root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id
     )
+    return get_mod_files_from_folder(source_path)
+
+
+def get_mod_files_from_folder(source_path: str) -> list:
+    """
+    Lists all rfcmp files from folder
+    """
     if not exists(source_path):
         return []
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
 
 
-def install_mod(server_config: dict, id: str) -> bool:
+def install_mod(server_config: dict, id: int, component_name: str) -> bool:
     root_path = server_config["server"]["root_path"]
-    source_path = join(
-        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id
+    source_path = None
+    if id > 0:
+        source_path = join(
+            root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", str(id)
+        )
+    else:
+        source_path = join(root_path, "items", component_name)
+    logging.info(
+        "Choosing source path {} for component {}".format(source_path, component_name)
     )
 
-    files = get_mod_files_from_steam(server_config, id)
+    files = (
+        get_mod_files_from_steam(server_config, str(id))
+        if id > 0
+        else get_mod_files_from_folder(source_path)
+    )
+    logging.info("Found {} files in {}".format(len(files), source_path))
     # copy files into rf2 packages dir
     copy_results = []
     for rf_mod in files:

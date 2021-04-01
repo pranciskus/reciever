@@ -28,9 +28,11 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     restore_vanilla(server_config)
     # build vehicle mods
     for workshop_id, vehicle in vehicles.items():
-        run_steamcmd(server_config, "add", workshop_id)
-        install_mod(server_config, workshop_id)
+        if int(workshop_id) > 0:
+            # if the workshop id is present, attempt install
+            run_steamcmd(server_config, "add", workshop_id)
         component_info = vehicle["component"]
+        install_mod(server_config, int(workshop_id), component_info["name"])
         if component_info["update"]:
             create_mas(server_config, component_info, True)
             build_cmp_mod(server_config, component_info, "Vehicles", True)
@@ -38,8 +40,11 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     used_track = None
     for workshop_id, track in tracks.items():
         used_track = track
-        run_steamcmd(server_config, "add", workshop_id)
-        install_mod(server_config, workshop_id)
+        if int(workshop_id) > 0:
+            # if the workshop id is present, attempt install
+            run_steamcmd(server_config, "add", workshop_id)
+
+        install_mod(server_config, int(workshop_id), track["component"]["name"])
 
         create_conditions(
             root_path,
@@ -259,7 +264,8 @@ def build_mod(
 
         line = 'Vehicle="' + name + " v" + version + ',0"'
         for entry in vehicle["entries"]:
-            line = line + ' "' + entry + ',1"'
+            # as the entry contains the pit group -> get rid of it
+            line = line + ' "' + entry.split(":")[0] + ',1"'
 
         veh_contents = veh_contents + line + "\n"
 
