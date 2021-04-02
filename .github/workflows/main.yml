@@ -44,8 +44,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.run_number }}
-          release_name: Release ${{ github.run_number }}
+          tag_name: R${{ github.run_number }}
+          release_name: R${{ github.run_number }} (${{ github.sha }})
           draft: false
           prerelease: true
 
@@ -59,3 +59,10 @@ jobs:
           asset_path: /home/runner/work/reciever/apx-build/release.zip
           asset_name: reciever.zip
           asset_content_type: application/zip
+
+      - name: Remove old releases
+        uses: dev-drprasad/delete-older-releases@v0.2.0
+        with:
+          keep_latest: 1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
