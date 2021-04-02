@@ -8,6 +8,7 @@ from rf2.util import get_server_port, get_public_http_server_port
 import logging
 from os import listdir
 from time import time
+from psutil import cpu_percent, virtual_memory
 
 
 def get_server_status(server_config: dict) -> dict:
@@ -66,6 +67,8 @@ def get_server_status(server_config: dict) -> dict:
             "keys": is_unlocked,
             "build": open(version_txt).readlines()[0].strip(),
             "release": reciever_release,
+            "cpu": cpu_percent(percpu=True),
+            "memory": virtual_memory()._asdict(),
         }
     except RequestException:
         pass  # do nothing, if the server is not running
@@ -82,7 +85,15 @@ def get_server_status(server_config: dict) -> dict:
         if exists(deploy_lock_file_path):
             result["in_deploy"] = True
 
-    result["replays"] = list(filter(lambda x: "tmp" not in x, listdir(replays_path)))
-    result["results"] = list(filter(lambda x: "xml" in x, listdir(results_path)))
+    result["replays"] = (
+        list(filter(lambda x: "tmp" not in x, listdir(replays_path)))
+        if exists(replays_path)
+        else []
+    )
+    result["results"] = (
+        list(filter(lambda x: "xml" in x, listdir(results_path)))
+        if exists(results_path)
+        else []
+    )
 
     return result
