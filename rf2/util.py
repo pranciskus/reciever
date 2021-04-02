@@ -164,6 +164,7 @@ def create_config():
 
 def setup_environment(root_path):
     config_path = join(root_path, "reciever", "server.json")
+    mod_path = join(root_path, "reciever", "mod.json")
     build_path = join(root_path, "build")
     steamcmd_path = join(root_path, "steamcmd")
     server_path = join(root_path, "steamcmd")
@@ -177,6 +178,7 @@ def setup_environment(root_path):
         mkdir(steamcmd_path)
 
         with open(config_path, "r") as file:
-            config = {"mod": {}, "server": loads(file.read())}
-            print(config)
-            install_server(config)
+            with open(mod_path, "r") as mod_file:
+                config = {"mod": loads(mod_file.read()), "server": loads(file.read())}
+                print(config)
+                install_server(config)
