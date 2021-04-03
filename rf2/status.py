@@ -86,7 +86,12 @@ def get_server_status(server_config: dict) -> dict:
             result["in_deploy"] = True
 
     result["replays"] = (
-        list(filter(lambda x: "tmp" not in x, listdir(replays_path)))
+        list(
+            filter(
+                lambda x: "tmp" not in x and "apx-keep.txt" not in x,
+                listdir(replays_path),
+            )
+        )
         if exists(replays_path)
         else []
     )
