@@ -13,6 +13,7 @@ from rf2.util import (
 )
 from rf2.interaction import chat, do_action, Action
 import logging
+from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
 
 
 def oneclick_start_server(server_config: dict) -> bool:
@@ -39,7 +40,7 @@ def oneclick_start_server(server_config: dict) -> bool:
         file.write("[SETTINGS]\n")
         file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
         file.write("[TRACKS]\n")
-    rf2_server = Application().start(server_binary_commandline)
+    Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
     return True
 
 
