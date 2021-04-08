@@ -21,6 +21,8 @@ from logging import error, handlers, Formatter, getLogger, DEBUG, INFO
 from waitress import serve
 from threading import Thread, Lock
 from time import sleep
+import win32net
+from os import getlogin
 
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
@@ -449,6 +451,18 @@ def after_request_func(response):
 
 
 if __name__ == "__main__":
+    # check for correct user
+    groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
+    assumed_admin = False
+    for group in groups:
+        # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
+        if "admin" in group.lower():
+            assumed_admin = True
+            break
+    if assumed_admin:
+        raise Exception(
+            "The reciever cannot be run as administrator. Use a dedicated user"
+        )
     server_config_path = str(Path(__file__).absolute()).replace(
         "reciever.py", "server.json"
     )
