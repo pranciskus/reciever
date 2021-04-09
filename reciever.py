@@ -2,7 +2,7 @@ from flask import Flask, request, Request, abort, send_file, jsonify, render_tem
 from functools import wraps
 from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
-from rf2.status import get_server_status
+from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import deploy_server, VERSION_SUFFIX
 from rf2.setup import install_server
@@ -123,11 +123,16 @@ def start_oneclick():
 
 
 last_status = None
+mod_content = None
 from time import time
 
 
 def poll_background_status(all_hooks):
     ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
+    global mod_content
+    new_content = get_server_mod(get_server_config())
+    if new_content:
+        mod_content = new_content
     while True:
         global last_status
         got = get_server_status(get_server_config())
@@ -160,6 +165,8 @@ def poll_background_status(all_hooks):
 
 @app.route("/status", methods=["GET"])
 def status():
+    if last_status:
+        last_status["mod_content"] = mod_content
     return json_response(last_status), 200
 
 

@@ -9,6 +9,16 @@ import logging
 from os import listdir
 from time import time
 from psutil import cpu_percent, virtual_memory
+from time import time
+
+
+def get_server_mod(server_config: dict) -> dict:
+    target_url = "http://localhost:{}".format(get_server_port(server_config))
+    try:
+        mod_content = get(target_url + "/rest/race/car").json()
+        return mod_content
+    except:
+        return None
 
 
 def get_server_status(server_config: dict) -> dict:
@@ -21,8 +31,6 @@ def get_server_status(server_config: dict) -> dict:
     Returns:
         A dictionary containing the current server state
     """
-    from time import time
-
     target_url = "http://localhost:{}".format(get_server_port(server_config))
     unlock_path = join(
         server_config["server"]["root_path"],
