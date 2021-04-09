@@ -1,7 +1,10 @@
 import subprocess
 from os.path import join, exists
-from os import listdir
+from os import listdir, unlink
 from shutil import copy
+import tempfile
+from pathlib import Path
+from re import match
 import logging
 
 STEAMCMDCOMMANDS = {
@@ -69,6 +72,34 @@ def get_mod_files_from_folder(source_path: str) -> list:
     if not exists(source_path):
         return []
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
+
+
+def get_entries_from_mod(root_path, component_name: str):
+    temp_path = tempfile.mkdtemp()
+    comp_path = join(root_path, "server", "Installed", "Vehicles", component_name)
+    if not exists(comp_path):
+        logging.info("The mod {} does not exists".format(comp_path))
+        return []
+    mod_mgr_path = join(root_path, "server", "Bin64", "ModMgr.exe")
+    files = list(Path(comp_path).rglob("*.mas"))
+    for file in files:
+        cmd_line_extract = '{} -x{} "*.veh" -o{}'.format(mod_mgr_path, file, temp_path)
+        p = subprocess.Popen(cmd_line_extract, shell=True, stderr=subprocess.PIPE)
+        p.wait()
+
+    veh_files = listdir(temp_path)
+    pattern = r"Description\s{0,}=\s{0,}\"(.+)\""
+    entries = []
+    for file in veh_files:
+        full_veh_path = join(temp_path, file)
+        with open(full_veh_path, "r") as veh_handle:
+            content = veh_handle.readlines()
+            for line in content:
+                got = match(pattern, line)
+                if got:
+                    description = got.group(1)
+                    entries.append(description)
+    return entries
 
 
 def install_mod(server_config: dict, id: int, component_name: str) -> bool:

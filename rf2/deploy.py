@@ -8,6 +8,7 @@ from json import loads, dumps, load, dump
 import re
 from distutils.version import LooseVersion
 import logging
+from rf2.steam import get_entries_from_mod
 from rf2.util import get_server_port
 
 VERSION_SUFFIX = ".9apx"
@@ -263,9 +264,14 @@ def build_mod(
             print("Using", version, "as mod version for item", name)
 
         line = 'Vehicle="' + name + " v" + version + ',0"'
-        for entry in vehicle["entries"]:
-            # as the entry contains the pit group -> get rid of it
-            line = line + ' "' + entry.split(":")[0] + ',1"'
+        if len(vehicle["entries"]) > 0:
+            for entry in vehicle["entries"]:
+                # as the entry contains the pit group -> get rid of it
+                line = line + ' "' + entry.split(":")[0] + ',1"'
+        else:
+            entries = get_entries_from_mod(root_path, name)
+            for entry in entries:
+                line = line + ' "' + entry + ',1"'
 
         veh_contents = veh_contents + line + "\n"
 
