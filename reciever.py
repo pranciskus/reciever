@@ -10,14 +10,14 @@ from rf2.util import create_config
 from os.path import join, exists, basename
 from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
-from json import loads
+from json import loads, dumps
 from time import sleep, time
 from math import ceil
 from shutil import copytree
 from sys import exit
 from pathlib import Path
 import hashlib
-from logging import error, handlers, Formatter, getLogger, DEBUG, INFO
+from logging import error, handlers, Formatter, getLogger, DEBUG, INFO, info
 from waitress import serve
 from threading import Thread, Lock
 from time import sleep
@@ -297,6 +297,52 @@ def get_skins():
 
         unpack_archive(skinpack_path, target_path)
         unlink(skinpack_path)
+    return json_response({"is_ok": True})
+
+
+@app.route("/plugins", methods=["POST"])
+@check_api_key
+def install_plugins():
+    config = get_server_config()
+    server_bin_path = join(config["server"]["root_path"], "server", "Bin64", "Plugins")
+    if request.method == "POST":
+        if len(request.files) == 0:
+            abort(418)
+
+    plugins = config["mod"]["plugins"]
+    plugin_config_path = join(
+        config["server"]["root_path"],
+        "server",
+        "UserData",
+        "player",
+        "CustomPluginVariables.JSON",
+    )
+    config = {}
+    if exists(plugin_config_path):
+        unlink(plugin_config_path)
+
+    existing_plugins = listdir(server_bin_path)
+    for plugin in existing_plugins:
+        plugin_path = join(server_bin_path, plugin)
+        if ".dll" in plugin_path:
+            info("Removing {}".format(plugin_path))
+            unlink(plugin_path)
+
+    for file, iostream in request.files.items():
+        base_name = basename(file)
+        got = iostream.save(join(server_bin_path, base_name))
+        info(
+            "Plugin file for {} injected into ".format(
+                base_name, join(server_bin_path, base_name)
+            )
+        )
+    for plugin, overwrite in plugins.items():
+        config[plugin] = overwrite
+        config[plugin][" Enabled"] = 1
+
+        info("Placing plugin {}".format(plugin))
+    with open(plugin_config_path, "w") as file:
+        file.write(dumps(config))
     return json_response({"is_ok": True})
 
 
