@@ -1,0 +1,46 @@
+{
+  "InternalsPlugin.dll": {
+    " Enabled": 0
+  },
+  "KnockoutQualifying.dll": {
+    " Enabled": 0,
+    "FixedNumberScored": 0,
+    "NumQualSessions": 0,
+    "TimedLapRequired": 1,
+    "Total1Session1Minutes": 0,
+    "Total1Session1Scored": 43,
+    "Total2Session1Minutes": 0,
+    "Total2Session1Scored": 43,
+    "Total2Session2Minutes": 0,
+    "Total2Session2Scored": 12,
+    "Total3Session1Minutes": 0,
+    "Total3Session1Scored": 43,
+    "Total3Session2Minutes": 0,
+    "Total3Session2Scored": 24,
+    "Total3Session3Minutes": 0,
+    "Total3Session3Scored": 12,
+    "Total4Session1Minutes": 0,
+    "Total4Session1Scored": 43,
+    "Total4Session2Minutes": 0,
+    "Total4Session2Scored": 36,
+    "Total4Session3Minutes": 0,
+    "Total4Session3Scored": 24,
+    "Total4Session4Minutes": 0,
+    "Total4Session4Scored": 12
+  },
+  "StockCarRules.dll": {
+    " Enabled": 1,
+    "AdjustFrozenOrder": 25,
+    "AdjustUntilYellowFlagState": 4,
+    "AllowFrozenAdjustments": 1,
+    "DoubleFileType": 2,
+    "Logging": 0,
+    "LuckyDogFreePass": 1,
+    "WaveArounds": 1,
+    "YellowLapsMinimum": 6,
+    "YellowLapsRandom": 0
+  },
+  "TrackIR_rF2_Plugin.dll": {
+    " Enabled": 0
+  }
+}

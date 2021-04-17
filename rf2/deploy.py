@@ -478,6 +478,13 @@ def restore_vanilla(server_config: dict) -> bool:
         join(reciever_root_path, "templates", "Multiplayer.JSON"),
         join(profile_path, "Multiplayer.JSON"),
     )
+    plugin_json_path = join(profile_path, "CustomPluginVariables.JSON")
+    copy(
+        join(reciever_root_path, "templates", "CustomPluginVariables.JSON"),
+        plugin_json_path,
+    )
+    logging.info("Wrote empty json into custom variables JSON from templates")
+
     overwrites = server_config["mod"]["server"]["overwrites"]
     for overwrite_file, overwrite_options in overwrites.items():
         full_path = join(profile_path, overwrite_file)

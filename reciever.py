@@ -13,7 +13,7 @@ from shutil import rmtree, unpack_archive
 from json import loads, dumps
 from time import sleep, time
 from math import ceil
-from shutil import copytree
+from shutil import copytree, copyfile
 from sys import exit
 from pathlib import Path
 import hashlib
@@ -541,7 +541,6 @@ if __name__ == "__main__":
         installed_source_path = join(root_path, "server", "Installed")
         copytree(installed_source_path, installed_target_path)
         print("Created installed template")
-
     log_path = join(root_path, "reciever.log")
 
     log_handler = handlers.TimedRotatingFileHandler(log_path, when="D", interval=5)
