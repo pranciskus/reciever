@@ -23,6 +23,7 @@ from threading import Thread, Lock
 from time import sleep
 import win32net
 from os import getlogin
+from re import match
 
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
@@ -478,6 +479,47 @@ def current_mod_filelist():
     for file in files:
         response = response + file + ";" + get_name_hash(file) + "\n"
     return response
+
+
+@app.route("/signatures", methods=["GET"])
+def get_signatures():
+    got = get_public_mod_info()
+    if got is None:
+        abort(404)
+    mod = got["mod"]["mod"]
+    version = mod["version"]
+    name = mod["name"]
+    webserver_config = read_webserver_config()
+    root_path = webserver_config["root_path"]
+    filename = join(
+        root_path, "server", "Manifests", name + "_" + version.replace(".", "") + ".mft"
+    )
+    if not exists(filename):
+        abort(404)
+    pattern = r"(Name|Version|Type|Signature|BaseSignature)=(.+)"
+
+    signatures = []
+    mod = None
+    with open(filename, "r") as file:
+        lines = file.readlines()
+        current_prop = {}
+        for line in lines:
+            print(len(line))
+            if len(line) == 1:
+                if current_prop != {}:
+                    if mod is None:
+                        mod = current_prop
+                    else:
+                        signatures.append(current_prop)
+                    current_prop = {}
+
+            got = match(pattern, line)
+            if got:
+                key = got.group(1)
+                value = got.group(2)
+                current_prop[key] = value
+
+    return json_response({"mod": mod, "signatures": signatures})
 
 
 @app.route("/current", methods=["GET"])
