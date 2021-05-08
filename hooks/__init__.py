@@ -7,6 +7,11 @@ from hooks.basehooks import (
     revoke_penalty,
     add_penalty,
     personal_best,
+    on_pit_change,
+    status_change,
+    on_flag_change,
+    on_garage_toggle,
+    on_pitting,
 )
 
 HOOKS = {}
@@ -27,3 +32,8 @@ register("onUnderYellowPositionChange", HOOKS, on_pos_change_yellow)
 register("onDriverPenaltyRevoke", HOOKS, revoke_penalty)
 register("onDriverPenaltyAdd", HOOKS, add_penalty)
 register("onNewPersonalBest", HOOKS, personal_best)
+register("onPitStateChange", HOOKS, on_pit_change)
+register("onFinishStatusChange", HOOKS, status_change)
+register("onShownFlagChange", HOOKS, on_flag_change)
+register("onGarageToggle", HOOKS, on_garage_toggle)
+register("onPittingChange", HOOKS, on_pitting)

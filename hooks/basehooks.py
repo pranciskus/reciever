@@ -34,3 +34,37 @@ def personal_best(driver, old_best, new_best):
     print(
         "A personal best was set: {} old={}, new={}".format(driver, old_best, new_best)
     )
+
+
+def on_pit_change(driver, old_status, status):
+    print(
+        "Pit status change for {} is now {}, was {}".format(driver, status, old_status)
+    )
+
+
+def on_garage_toggle(driver, old_status, status):
+    if status:
+        print("{} is now exiting the garage".format(driver))
+    else:
+        print("{} returned to the garage".format(driver))
+
+
+def on_pitting(driver, old_status, status):
+    if status:
+        print("{} is now pitting".format(driver))
+    else:
+        print("{} finished pitting".format(driver))
+
+
+def status_change(driver, old_status, new_status):
+    print(
+        "Finish status change for {} is now {}, was {}".format(
+            driver, new_status, old_status
+        )
+    )
+
+
+def on_flag_change(driver, old_flag, new_flag):
+    print(
+        "Driver {} sees a flag change to {} (was {})".format(driver, new_flag, old_flag)
+    )
