@@ -546,8 +546,12 @@ def restore_vanilla(server_config: dict) -> bool:
 
         logging.info("Applying template from {} to {}".format(path, target_path))
         copytree(path, target_path)
-    # Update the server itself using steam
-    run_steamcmd(server_config, "update")
+    do_update = server_config["mod"]["update_on_build"]
+    if do_update:
+        # Update the server itself using steam
+        run_steamcmd(server_config, "update")
+    else:
+        logging.info("Skipping update of the server itself.")
 
 
 def create_mas(server_config: dict, component_info: dict, add_version_suffix=False):
