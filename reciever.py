@@ -28,18 +28,24 @@ from re import match
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
 from rf2.events.onCarCountChange import onCarCountChange
-from rf2.events.onDriverPenaltyChange import onDriverPenaltyChange
+from rf2.events.onDriverPenaltyChange import (
+    onDriverPenaltyChange,
+    onDriverPenaltyRevoke,
+    onDriverPenaltyAdd,
+)
 from rf2.events.onSessionChange import onSessionChange
 from rf2.events.onFinishStatusChange import onFinishStatusChange
 from rf2.events.onPitStateChange import onPitStateChange
-from rf2.events.onLowSpeed import onLowSpeed
+from rf2.events.onLowSpeed import onLowSpeed, onSuspectedLag
 from rf2.events.onShownFlagChange import onShownFlagChange
 from rf2.events.onStart import onStart
 from rf2.events.onStop import onStop
 from rf2.events.onDriverSwap import onDriverSwap
 from rf2.events.onNewReplay import onNewReplay
 from rf2.events.onNewResult import onNewResult
-from rf2.events.onNewBestLapTime import onNewBestLapTime
+from rf2.events.onNewBestLapTime import onNewBestLapTime, onNewPersonalBest
+from rf2.events.onLapCompleted import onLapCompleted
+from rf2.events.onPositionChange import onPositionChange, onUnderYellowPositionChange
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -55,6 +61,13 @@ RECIEVER_HOOK_EVENTS = [
     onNewReplay,
     onNewResult,
     onNewBestLapTime,
+    onNewPersonalBest,
+    onLapCompleted,
+    onPositionChange,
+    onUnderYellowPositionChange,
+    onSuspectedLag,
+    onDriverPenaltyRevoke,
+    onDriverPenaltyAdd,
 ]
 
 # load actual hooks
