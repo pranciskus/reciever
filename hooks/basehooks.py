@@ -1,3 +1,6 @@
+from time import time
+
+
 def best_lap(driver, time, team):
     print("New best lap {}: {}".format(driver, time))
 
@@ -49,11 +52,27 @@ def on_garage_toggle(driver, old_status, status):
         print("{} returned to the garage".format(driver))
 
 
+pit_times = {}
+
+
 def on_pitting(driver, old_status, status):
     if status:
+        pit_times[driver] = time()
         print("{} is now pitting".format(driver))
     else:
-        print("{} finished pitting".format(driver))
+        try:
+            start_time = pit_times[driver] if driver in pit_times else 0
+            if start_time > 0:
+                duration = time() - start_time
+                print(
+                    "{} finished pitting. Pit took {} seconds.".format(driver, duration)
+                )
+            else:
+                print("{} finished pitting".format(driver))
+        except:
+            import traceback
+
+            print(traceback.print_exc())
 
 
 def status_change(driver, old_status, new_status):

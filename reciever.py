@@ -35,7 +35,11 @@ from rf2.events.onDriverPenaltyChange import (
 )
 from rf2.events.onSessionChange import onSessionChange
 from rf2.events.onFinishStatusChange import onFinishStatusChange
-from rf2.events.onPitStateChange import onPitStateChange
+from rf2.events.onPitStateChange import (
+    onPitStateChange,
+    onGarageToggle,
+    onPittingChange,
+)
 from rf2.events.onLowSpeed import onLowSpeed, onSuspectedLag
 from rf2.events.onShownFlagChange import onShownFlagChange
 from rf2.events.onStart import onStart
@@ -68,6 +72,8 @@ RECIEVER_HOOK_EVENTS = [
     onSuspectedLag,
     onDriverPenaltyRevoke,
     onDriverPenaltyAdd,
+    onGarageToggle,
+    onPittingChange,
 ]
 
 # load actual hooks
