@@ -11,6 +11,7 @@ def onLapCompleted(oldStatus, newStatus, all_hooks):
 
         for driver, laps_completed in new_driver_laps.items():
             old_laps = old_driver_laps[driver] if driver in old_driver_laps else 0
-            if old_laps != laps_completed:
-                for hook in all_hooks:
-                    hook(driver, laps_completed)
+            if laps_completed > 0:
+                if old_laps != laps_completed:
+                    for hook in all_hooks:
+                        hook(driver, laps_completed)
