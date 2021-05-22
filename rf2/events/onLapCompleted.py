@@ -14,4 +14,4 @@ def onLapCompleted(oldStatus, newStatus, all_hooks):
             if laps_completed > 0:
                 if old_laps != laps_completed:
                     for hook in all_hooks:
-                        hook(driver, laps_completed)
+                        hook(driver, laps_completed, newStatus)

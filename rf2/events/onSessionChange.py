@@ -5,4 +5,4 @@ def onSessionChange(oldStatus, newStatus, all_hooks):
 
         if old_session != new_session:
             for hook in all_hooks:
-                hook(old_session, new_session)
+                hook(old_session, new_session, newStatus)

@@ -15,7 +15,7 @@ def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):
             )
             if old_penalty_count != penalty_count:
                 for hook in all_hooks:
-                    hook(driver, old_penalty_count, penalty_count)
+                    hook(driver, old_penalty_count, penalty_count, newStatus)
 
 
 def onDriverPenaltyRevoke(oldStatus, newStatus, all_hooks):
@@ -32,7 +32,7 @@ def onDriverPenaltyRevoke(oldStatus, newStatus, all_hooks):
             )
             if old_penalty_count > penalty_count:
                 for hook in all_hooks:
-                    hook(driver, old_penalty_count, penalty_count)
+                    hook(driver, old_penalty_count, penalty_count, newStatus)
 
 
 def onDriverPenaltyAdd(oldStatus, newStatus, all_hooks):
@@ -49,4 +49,4 @@ def onDriverPenaltyAdd(oldStatus, newStatus, all_hooks):
             )
             if old_penalty_count < penalty_count:
                 for hook in all_hooks:
-                    hook(driver, old_penalty_count, penalty_count)
+                    hook(driver, old_penalty_count, penalty_count, newStatus)
