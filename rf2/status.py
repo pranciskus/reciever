@@ -55,6 +55,14 @@ def get_server_status(server_config: dict) -> dict:
     replays_path = join(
         server_config["server"]["root_path"], "server", "UserData", "Replays"
     )
+    session_id_path = join(
+        server_config["server"]["root_path"], "reciever", "session_id.txt"
+    )
+    session_id = None
+
+    if exists(session_id_path):
+        with open(session_id_path, "r") as file:
+            session_id = file.read()
     reciever_release = open(release_file_path, "r").read()
     result = None
 
@@ -77,9 +85,10 @@ def get_server_status(server_config: dict) -> dict:
             "release": reciever_release,
             "cpu": cpu_percent(percpu=True),
             "memory": virtual_memory()._asdict(),
+            "session_id": session_id,
         }
     except RequestException:
-        pass  # do nothing, if the server is not running
+        result = None  # do nothing, if the server is not running
     except Exception as e:
         logging.error(e)
         result = None
