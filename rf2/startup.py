@@ -14,6 +14,8 @@ from rf2.util import (
 from rf2.interaction import chat, do_action, Action
 import logging
 from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
+from string import ascii_uppercase, digits
+from random import choice
 
 
 def oneclick_start_server(server_config: dict) -> bool:
@@ -26,6 +28,11 @@ def oneclick_start_server(server_config: dict) -> bool:
         + f' +path="{server_root_path}"'
         + f"  +profile=player  +oneclick"
     )
+
+    session_id_path = join(root_path, "reciever", "session_id.txt")
+
+    with open(session_id_path, "w") as file:
+        file.write("".join(choice(ascii_uppercase + digits) for _ in range(25)))
 
     # make sure the Dedicated<modname>.ini has the correct content
     mod_ini_path = join(
