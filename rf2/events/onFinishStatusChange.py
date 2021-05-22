@@ -15,4 +15,4 @@ def onFinishStatusChange(oldStatus, newStatus, all_hooks):
             )
             if old_status != status:
                 for hook in all_hooks:
-                    hook(driver, old_status, status)
+                    hook(driver, old_status, status, newStatus)

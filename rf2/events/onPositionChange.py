@@ -13,7 +13,7 @@ def onPositionChange(oldStatus, newStatus, all_hooks):
             old_pos = old_driver_pos[driver] if driver in old_driver_pos else 0
             if old_pos != new_pos:
                 for hook in all_hooks:
-                    hook(driver, old_pos, new_pos)
+                    hook(driver, old_pos, new_pos, newStatus)
 
 
 def onUnderYellowPositionChange(oldStatus, newStatus, all_hooks):
@@ -33,4 +33,4 @@ def onUnderYellowPositionChange(oldStatus, newStatus, all_hooks):
             if old_pos != 0:
                 if old_pos != new_pos and under_yellow:
                     for hook in all_hooks:
-                        hook(driver, old_pos, new_pos)
+                        hook(driver, old_pos, new_pos, newStatus)

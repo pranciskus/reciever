@@ -69,6 +69,7 @@ def onLowSpeed(oldStatus, newStatus, all_hooks):
                             speed["nearby"],
                             speed["teamName"],
                             speed["additional"],
+                            newStatus,
                         )
                     del warns[driver]
 
@@ -102,6 +103,7 @@ def onSuspectedLag(oldStatus, newStatus, all_hooks):
                                 speed["nearby"],
                                 speed["teamName"],
                                 speed["additional"],
+                                newStatus,
                             )
                         del lag_warns[driver]
         except Exception as e:

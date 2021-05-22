@@ -7,4 +7,4 @@ def onCarCountChange(oldStatus, newStatus, all_hooks):
             for hook in all_hooks:
                 old_status_cars = oldStatus["vehicles"]
                 new_status_cars = newStatus["vehicles"]
-                hook(old_status_cars, new_status_cars)
+                hook(old_status_cars, new_status_cars, newStatus)

@@ -27,7 +27,7 @@ def onDriverSwap(oldStatus, newStatus, all_hooks):
             new_driver = driver
             if old_driver != new_driver:
                 for hook in all_hooks:
-                    hook(slotId, old_driver, new_driver)
+                    hook(slotId, old_driver, new_driver, newStatus)
 
 
 def onSteamIdChange(oldStatus, newStatus, all_hooks):
@@ -42,4 +42,4 @@ def onSteamIdChange(oldStatus, newStatus, all_hooks):
             old_id = old_drivers[slotId]
             if old_id != new_id:
                 for hook in all_hooks:
-                    hook(slotId, old_id, new_id)
+                    hook(slotId, old_id, new_id, newStatus)

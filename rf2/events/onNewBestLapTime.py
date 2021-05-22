@@ -1,5 +1,6 @@
 overall_best_lap = None
 overall_best_time = None
+from rf2.events import get_prop_map
 
 
 def onNewBestLapTime(oldStatus, newStatus, all_hooks):
@@ -32,15 +33,20 @@ def onNewBestLapTime(oldStatus, newStatus, all_hooks):
 
 def onNewPersonalBest(oldStatus, newStatus, all_hooks):
     if "vehicles" in oldStatus and "vehicles" in newStatus:
-        old_vehicles = oldStatus["vehicles"]
-        new_vehicles = newStatus["vehicles"]
+        try:
+            old_vehicles = oldStatus["vehicles"]
+            new_vehicles = newStatus["vehicles"]
 
-        old_driver_best = get_prop_map(old_vehicles, "bestLapTime")
-        new_driver_best = get_prop_map(new_vehicles, "bestLapTime")
+            old_driver_best = get_prop_map(old_vehicles, "bestLapTime")
+            new_driver_best = get_prop_map(new_vehicles, "bestLapTime")
 
-        for driver, new_best in old_driver_best.items():
-            old_best = old_driver_best[driver] if driver in old_driver_best else 0
-            # fire the hook either with a regular best or an overall best for this driver.
-            if old_best > new_best or new_best > 0 and old_best < 0:
-                for hook in all_hooks:
-                    hook(driver, old_best, new_best)
+            for driver, new_best in old_driver_best.items():
+                old_best = old_driver_best[driver] if driver in old_driver_best else 0
+                # fire the hook either with a regular best or an overall best for this driver.
+                if old_best > new_best or new_best > 0 and old_best < 0:
+                    for hook in all_hooks:
+                        hook(driver, old_best, new_best, newStatus)
+        except:
+            import traceback
+
+            print(traceback.print_exc())

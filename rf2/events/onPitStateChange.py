@@ -23,7 +23,7 @@ def onPitStateChange(oldStatus, newStatus, all_hooks):
             )
             if old_status != status:
                 for hook in all_hooks:
-                    hook(driver, old_status, status)
+                    hook(driver, old_status, status, newStatus)
 
 
 def onGarageToggle(oldStatus, newStatus, all_hooks):
@@ -42,7 +42,7 @@ def onGarageToggle(oldStatus, newStatus, all_hooks):
             is_pitting = pitting_drivers[driver] if driver in pitting_drivers else False
             if old_status != status:
                 for hook in all_hooks and not is_pitting:
-                    hook(driver, old_status, status)
+                    hook(driver, old_status, status, newStatus)
 
 
 def onPittingChange(oldStatus, newStatus, all_hooks):
@@ -63,4 +63,4 @@ def onPittingChange(oldStatus, newStatus, all_hooks):
             )
             if old_status != status and not is_in_garage:
                 for hook in all_hooks:
-                    hook(driver, old_status, status)
+                    hook(driver, old_status, status, newStatus)

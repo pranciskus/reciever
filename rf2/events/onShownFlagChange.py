@@ -13,4 +13,4 @@ def onShownFlagChange(oldStatus, newStatus, all_hooks):
             old_yellow_status = old_yellow[driver] if driver in old_yellow else False
             if yellow != old_yellow_status:
                 for hook in all_hooks:
-                    hook(driver, old_yellow_status, yellow)
+                    hook(driver, old_yellow_status, yellow, newStatus)
