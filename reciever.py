@@ -6,7 +6,7 @@ from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import deploy_server, VERSION_SUFFIX
 from rf2.setup import install_server
-from rf2.util import create_config
+from rf2.util import create_config, get_server_port
 from os.path import join, exists, basename
 from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
@@ -296,6 +296,41 @@ def deploy_server_config():
 def return_processed_results():
     got = process_results()
     return json_response(got)
+
+
+import tempfile
+import tarfile
+from requests import get
+from shutil import copyfileobj
+from flask import send_file
+
+
+@app.route("/thumbs", methods=["GET"])
+@check_api_key
+def get_thumbs():
+    config = get_server_config()
+    port = get_server_port(config)
+    tmpdirname = tempfile.mkdtemp(suffix="apx")
+    thumb_file_path = join(tmpdirname, "apx_thumbs.tar.gz")
+
+    entries = get("http://localhost:{}/rest/race/car".format(port)).json()
+    logger.info("Using temp dir {} for thumbnails".format(tmpdirname))
+
+    with tarfile.open(thumb_file_path, "w:gz") as tar:
+        for entry in entries:
+            image = entry["image"]
+            car_id = entry["id"]
+            image_url = "http://localhost:{}".format(port) + image
+            r = get(image_url, stream=True)
+            if r.status_code == 200:
+                image_path = join(tmpdirname, car_id + ".png")
+                with open(image_path, "wb") as f:
+                    r.raw.decode_content = True
+                    copyfileobj(r.raw, f)
+                    tar.add(image_path, car_id + ".png")
+                unlink(image_path)
+        tar.close()
+    return send_file(thumb_file_path, attachment_filename="skins.tar.gz")
 
 
 @app.route("/skins", methods=["POST"])
