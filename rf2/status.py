@@ -69,6 +69,7 @@ def get_server_status(server_config: dict) -> dict:
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
         standings_raw = get(target_url + "/rest/watch/standings").json()
+        session_info_raw = get(target_url + "/rest/sessions").json()
 
         result = {
             "track": status_raw["trackName"],
@@ -86,7 +87,26 @@ def get_server_status(server_config: dict) -> dict:
             "cpu": cpu_percent(percpu=True),
             "memory": virtual_memory()._asdict(),
             "session_id": session_id,
+            "weather": {
+                "ambient": status_raw["ambientTemp"],
+                "track": status_raw["trackTemp"],
+                "rain": {
+                    "min": status_raw["minPathWetness"],
+                    "avg": status_raw["averagePathWetness"],
+                    "max": status_raw["maxPathWetness"],
+                    "raining": status_raw["raining"],
+                    "dark_cloud": status_raw["darkCloud"],
+                },
+            },
         }
+        # unsure if always working, so in a try catch to prevent complete abort
+        try:
+            result["race_time"] = (
+                session_info_raw["SESSSET_race_time"]["currentValue"] * 60
+            )
+            result["time_completion"] = status_raw["raceCompletion"]["timeCompletion"]
+        except:
+            pass
     except RequestException:
         result = None  # do nothing, if the server is not running
     except Exception as e:
