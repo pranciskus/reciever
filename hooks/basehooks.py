@@ -1,15 +1,29 @@
 from time import time
-
-TARGET_SERVER = "http://localhost:8000/addmessage/cffhddcfgahchafbhifg"
-
 from json import dumps
 from requests import post
 from threading import Thread
+from reciever import get_server_config
 
-# TODO: ADD INGAME ET/ LEAD LAP/ CAR LAP
+
 def poll_server_async(event):
-    if TARGET_SERVER:
-        got = post(TARGET_SERVER, json=event)
+    config = get_server_config()
+    callback_target = config["mod"]["callback_target"]
+    if callback_target is not None:
+        got = post(callback_target, json=event)
+
+
+def get_slot_by_name(name, all_vehicles):
+    for vehicle in all_vehicles["vehicles"]:
+        if vehicle["driverName"] == name:
+            return vehicle["slotID"]
+    return None
+
+
+def get_last_lap_time(name, all_vehicles):
+    for vehicle in all_vehicles["vehicles"]:
+        if vehicle["driverName"] == name:
+            return vehicle["lastLapTime"]
+    return None
 
 
 def poll_server(event):
@@ -25,6 +39,7 @@ def new_lap(driver, laps, newStatus):
     print("New lap count {}: {}".format(driver, laps))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    last_lap_time = get_last_lap_time(driver, newStatus)
     poll_server(
         {
             "driver": driver,
@@ -32,6 +47,8 @@ def new_lap(driver, laps, newStatus):
             "type": "LC",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
+            "last_lap_time": last_lap_time,
         }
     )
 
@@ -48,6 +65,7 @@ def on_pos_change(driver, old_pos, new_pos, newStatus):
             "type": "P",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -64,6 +82,7 @@ def on_pos_change_yellow(driver, old_pos, new_pos, newStatus):
             "type": "PY",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -87,6 +106,7 @@ def test_lag(driver, speed, old_speed, location, nearby, team, additional, newSt
             "type": "L",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -102,6 +122,7 @@ def add_penalty(driver, old_penalty_count, penalty_count, newStatus):
             "type": "P+",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -117,6 +138,7 @@ def revoke_penalty(driver, old_penalty_count, penalty_count, newStatus):
             "type": "P-",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -135,6 +157,7 @@ def personal_best(driver, old_best, new_best, newStatus):
             "type": "PB",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
@@ -154,6 +177,7 @@ def on_pit_change(driver, old_status, status, newStatus):
                 "type": "PS",
                 "event_time": event_time,
                 "session": session,
+                "slot_id": get_slot_by_name(driver, newStatus),
             }
         )
 
@@ -171,6 +195,7 @@ def on_garage_toggle(driver, old_status, status, newStatus):
                 "type": "GO",
                 "event_time": event_time,
                 "session": session,
+                "slot_id": get_slot_by_name(driver, newStatus),
             }
         )
     else:
@@ -183,6 +208,7 @@ def on_garage_toggle(driver, old_status, status, newStatus):
                 "type": "GI",
                 "event_time": event_time,
                 "session": session,
+                "slot_id": get_slot_by_name(driver, newStatus),
             }
         )
 
@@ -202,6 +228,7 @@ def on_pitting(driver, old_status, status, newStatus):
                 "type": "PSS",
                 "event_time": event_time,
                 "session": session,
+                "slot_id": get_slot_by_name(driver, newStatus),
             }
         )
 
@@ -219,6 +246,7 @@ def on_pitting(driver, old_status, status, newStatus):
                         "type": "PSE",
                         "event_time": event_time,
                         "session": session,
+                        "slot_id": get_slot_by_name(driver, newStatus),
                     }
                 )
             else:
@@ -229,6 +257,7 @@ def on_pitting(driver, old_status, status, newStatus):
                         "type": "PSE",
                         "event_time": event_time,
                         "session": session,
+                        "slot_id": get_slot_by_name(driver, newStatus),
                     }
                 )
         except:
@@ -254,6 +283,7 @@ def status_change(driver, old_status, new_status, newStatus):
             "type": "S",
             "event_time": event_time,
             "session": session,
+            "slot_id": get_slot_by_name(driver, newStatus),
         }
     )
 
