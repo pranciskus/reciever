@@ -16,10 +16,10 @@ def poll_server_async(event):
 def poll_server_status_async(status):
     config = get_server_config()
     callback_target = config["mod"]["callback_target"]
-    secret = config["server"]["auth"]
-    pattern = r"/addmessage.*"
-    callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
     if callback_target is not None:
+        secret = config["server"]["auth"]
+        pattern = r"/addmessage.*"
+        callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
         got = post(callback_target, json=status)
 
 
