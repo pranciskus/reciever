@@ -1,4 +1,4 @@
-from rf2.events import get_prop_map
+from rf2.events import get_prop_map, get_laps_by_slot
 
 
 def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):

@@ -21,7 +21,6 @@ def onDriverSwap(oldStatus, newStatus, all_hooks):
 
         new_drivers = get_driver_by_slot(new_vehicles)
         old_drivers = get_driver_by_slot(old_vehicles)
-
         for slotId, driver in new_drivers.items():
             old_driver = old_drivers[slotId]
             new_driver = driver

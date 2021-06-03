@@ -11,3 +11,11 @@ def get_prop_map(drivers, property):
         result[driver["driverName"]] = driver[property]
 
     return result
+
+
+def get_laps_by_slot(drivers):
+    result = {}
+    for driver in drivers:
+        result[driver["slotid"]] = driver["lapsCompleted"]
+
+    return result

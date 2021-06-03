@@ -30,6 +30,13 @@ def get_slot_by_name(name, all_vehicles):
     return None
 
 
+def get_prop_by_slot(slot, all_vehicles, propName):
+    for vehicle in all_vehicles["vehicles"]:
+        if vehicle["slotID"] == slot:
+            return vehicle[propName]
+    return None
+
+
 def get_last_lap_time(name, all_vehicles):
     for vehicle in all_vehicles["vehicles"]:
         if vehicle["driverName"] == name:
@@ -133,6 +140,8 @@ def add_penalty(driver, old_penalty_count, penalty_count, newStatus):
     print("A penalty was added for {}. Sum={}".format(driver, penalty_count))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     poll_server(
         {
             "sum": penalty_count,
@@ -140,7 +149,8 @@ def add_penalty(driver, old_penalty_count, penalty_count, newStatus):
             "type": "P+",
             "event_time": event_time,
             "session": session,
-            "slot_id": get_slot_by_name(driver, newStatus),
+            "slot_id": slot,
+            "laps": laps,
         }
     )
 
@@ -149,6 +159,8 @@ def revoke_penalty(driver, old_penalty_count, penalty_count, newStatus):
     print("A penalty was removed for {}. Sum={}".format(driver, penalty_count))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     poll_server(
         {
             "sum": penalty_count,
@@ -156,7 +168,8 @@ def revoke_penalty(driver, old_penalty_count, penalty_count, newStatus):
             "type": "P-",
             "event_time": event_time,
             "session": session,
-            "slot_id": get_slot_by_name(driver, newStatus),
+            "slot_id": slot,
+            "laps": laps,
         }
     )
 
@@ -167,6 +180,8 @@ def personal_best(driver, old_best, new_best, newStatus):
     )
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     poll_server(
         {
             "new_best": new_best,
@@ -175,7 +190,8 @@ def personal_best(driver, old_best, new_best, newStatus):
             "type": "PB",
             "event_time": event_time,
             "session": session,
-            "slot_id": get_slot_by_name(driver, newStatus),
+            "slot_id": slot,
+            "laps": laps,
         }
     )
 
@@ -203,6 +219,8 @@ def on_pit_change(driver, old_status, status, newStatus):
 def on_garage_toggle(driver, old_status, status, newStatus):
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     if status:
         print("{} is now exiting the garage".format(driver))
         poll_server(
@@ -226,7 +244,8 @@ def on_garage_toggle(driver, old_status, status, newStatus):
                 "type": "GI",
                 "event_time": event_time,
                 "session": session,
-                "slot_id": get_slot_by_name(driver, newStatus),
+                "slot_id": slot,
+                "laps": laps,
             }
         )
 
@@ -237,6 +256,9 @@ pit_times = {}
 def on_pitting(driver, old_status, status, newStatus):
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     if status:
         pit_times[driver] = time()
         print("{} is now pitting".format(driver))
@@ -246,7 +268,8 @@ def on_pitting(driver, old_status, status, newStatus):
                 "type": "PSS",
                 "event_time": event_time,
                 "session": session,
-                "slot_id": get_slot_by_name(driver, newStatus),
+                "slot_id": slot,
+                "laps": laps,
             }
         )
 
@@ -264,7 +287,8 @@ def on_pitting(driver, old_status, status, newStatus):
                         "type": "PSE",
                         "event_time": event_time,
                         "session": session,
-                        "slot_id": get_slot_by_name(driver, newStatus),
+                        "slot_id": slot,
+                        "laps": laps,
                     }
                 )
             else:
@@ -275,7 +299,8 @@ def on_pitting(driver, old_status, status, newStatus):
                         "type": "PSE",
                         "event_time": event_time,
                         "session": session,
-                        "slot_id": get_slot_by_name(driver, newStatus),
+                        "slot_id": slot,
+                        "laps": laps,
                     }
                 )
         except:
@@ -293,6 +318,9 @@ def status_change(driver, old_status, new_status, newStatus):
 
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     poll_server(
         {
             "driver": driver,
@@ -301,7 +329,8 @@ def status_change(driver, old_status, new_status, newStatus):
             "type": "S",
             "event_time": event_time,
             "session": session,
-            "slot_id": get_slot_by_name(driver, newStatus),
+            "slot_id": slot,
+            "laps": laps,
         }
     )
 
