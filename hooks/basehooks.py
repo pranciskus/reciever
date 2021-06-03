@@ -3,6 +3,7 @@ from json import dumps
 from requests import post
 from threading import Thread
 from reciever import get_server_config
+from re import sub
 
 
 def poll_server_async(event):
@@ -10,6 +11,16 @@ def poll_server_async(event):
     callback_target = config["mod"]["callback_target"]
     if callback_target is not None:
         got = post(callback_target, json=event)
+
+
+def poll_server_status_async(status):
+    config = get_server_config()
+    callback_target = config["mod"]["callback_target"]
+    secret = config["server"]["auth"]
+    pattern = r"/addmessage.*"
+    callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
+    if callback_target is not None:
+        got = post(callback_target, json=status)
 
 
 def get_slot_by_name(name, all_vehicles):
@@ -28,6 +39,13 @@ def get_last_lap_time(name, all_vehicles):
 
 def poll_server(event):
     background_thread = Thread(target=poll_server_async, args=(event,), daemon=True)
+    background_thread.start()
+
+
+def poll_status_server(status):
+    background_thread = Thread(
+        target=poll_server_status_async, args=(status,), daemon=True
+    )
     background_thread.start()
 
 
@@ -292,3 +310,7 @@ def on_flag_change(driver, old_flag, new_flag, newStatus):
     print(
         "Driver {} sees a flag change to {} (was {})".format(driver, new_flag, old_flag)
     )
+
+
+def on_tick(status):
+    poll_status_server(status)

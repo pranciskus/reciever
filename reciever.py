@@ -6,7 +6,7 @@ from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import deploy_server, VERSION_SUFFIX
 from rf2.setup import install_server
-from rf2.util import create_config, get_server_port
+from rf2.util import create_config, get_server_port, get_public_sim_server_port
 from os.path import join, exists, basename
 from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
@@ -50,6 +50,7 @@ from rf2.events.onNewResult import onNewResult
 from rf2.events.onNewBestLapTime import onNewBestLapTime, onNewPersonalBest
 from rf2.events.onLapCompleted import onLapCompleted
 from rf2.events.onPositionChange import onPositionChange, onUnderYellowPositionChange
+from rf2.events.onTick import onTick
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -74,6 +75,7 @@ RECIEVER_HOOK_EVENTS = [
     onDriverPenaltyAdd,
     onGarageToggle,
     onPittingChange,
+    onTick,
 ]
 
 # load actual hooks
@@ -315,22 +317,24 @@ def get_thumbs():
 
     entries = get("http://localhost:{}/rest/race/car".format(port)).json()
     logger.info("Using temp dir {} for thumbnails".format(tmpdirname))
-
-    with tarfile.open(thumb_file_path, "w:gz") as tar:
-        for entry in entries:
-            image = entry["image"]
-            car_id = entry["id"]
-            image_url = "http://localhost:{}".format(port) + image
-            r = get(image_url, stream=True)
-            if r.status_code == 200:
-                image_path = join(tmpdirname, car_id + ".png")
-                with open(image_path, "wb") as f:
-                    r.raw.decode_content = True
-                    copyfileobj(r.raw, f)
-                    tar.add(image_path, car_id + ".png")
-                unlink(image_path)
-        tar.close()
-    return send_file(thumb_file_path, attachment_filename="skins.tar.gz")
+    try:
+        with tarfile.open(thumb_file_path, "w:gz") as tar:
+            for entry in entries:
+                image = entry["image"]
+                car_id = entry["id"]
+                image_url = "http://localhost:{}".format(port) + image
+                r = get(image_url, stream=True)
+                if r.status_code == 200:
+                    image_path = join(tmpdirname, car_id + ".png")
+                    with open(image_path, "wb") as f:
+                        r.raw.decode_content = True
+                        copyfileobj(r.raw, f)
+                        tar.add(image_path, car_id + ".png")
+                    unlink(image_path)
+            tar.close()
+        return send_file(thumb_file_path, attachment_filename="skins.tar.gz")
+    except:
+        abort(402)
 
 
 @app.route("/skins", methods=["POST"])
@@ -448,91 +452,76 @@ def initial_setup_unlock():
 
 def get_public_mod_info():
     got = get_server_config()
-    print(got)
+    got["port"] = get_public_sim_server_port(got)
     if got is None:
         return None
     del got["mod"]["server"]
     del got["mod"]["mod"]["rfm"]
     del got["server"]
+    del got["mod"]["callback_target"]
+    del got["mod"]["conditions"]
 
     return got
 
 
-def mod_filelist():
-    got = get_public_mod_info()
-    if got is None:
-        return []
-    mod = got["mod"]["mod"]
-    files = [
-        join(
-            "Manifests",
-            "{}_{}.mft".format(mod["name"], mod["version"].replace(".", "")),
-        ),
-        join(
-            "Installed",
-            "rFm",
-            "{}_{}.mas".format(mod["name"], mod["version"].replace(".", "")),
-        ),
-        join("Packages", "{}.rfmod".format(mod["name"])),
-    ]
-    has_updates = True
-    for source, car in got["mod"]["cars"].items():
-        if car["component"]["update"]:
-            files.append(
-                join(
-                    "Packages",
-                    "{}_v{}.rfcmp".format(
-                        car["component"]["name"], car["component"]["version"]
-                    ),
-                )
-            )
-            relative_root = join(root_path, "server", "Installed", "Vehicles")
-            component_path = join(
-                relative_root,
-                car["component"]["name"],
-                car["component"]["version"],
-            )
-            files_of_update = listdir(component_path)
-            for file in files_of_update:
-                files.append(
-                    join(
-                        "Installed",
-                        "Vehicles",
-                        car["component"]["name"],
-                        car["component"]["version"],
-                        file,
-                    )
-                )
-    return files
-
-
-def get_name_hash(text: str) -> str:
-    hash_object = hashlib.sha1(text.encode("utf8"))
-    return str(hash_object.hexdigest())
-
-
-@app.route("/file/<requested_hash_code>", methods=["GET"])
-def get_file(requested_hash_code: str):
+@app.route(
+    "/files/<component>/<version>", methods=["GET"]
+)  # supports ONLY cars at the moment
+def get_files_of_update(component: str, version: str):
     config = get_server_config()
-    files = mod_filelist()
-    for file in files:
-        hash_code = get_name_hash(file)
-        if hash_code == requested_hash_code:
-            full_path = join(config["server"]["root_path"], "server", file)
-            filename = basename(full_path)
-            return send_file(
-                full_path, attachment_filename=filename, as_attachment=True
-            )
+    mod = config["mod"]
+    webserver_config = read_webserver_config()
+    root_path = webserver_config["root_path"]
+
+    cars = mod["cars"]
+    for _, car in cars.items():
+        car_component = car["component"]["name"]
+        car_version = car["component"]["version"]
+        car_update = car["component"]["update"]
+        if car_update:
+            if component == car_component and version == car_version:
+                path = join(
+                    root_path, "server", "Installed", "Vehicles", component, version
+                )
+                files = listdir(path)
+                return json_response(files)
     abort(404)
 
 
-@app.route("/filelist", methods=["GET"])
-def current_mod_filelist():
-    files = mod_filelist()
-    response = ""
-    for file in files:
-        response = response + file + ";" + get_name_hash(file) + "\n"
-    return response
+@app.route(
+    "/files/<component>/<version>/<file>", methods=["GET"]
+)  # supports ONLY cars at the moment
+def get_file(component: str, version: str, file: str):
+    config = get_server_config()
+    mod = config["mod"]
+    webserver_config = read_webserver_config()
+    root_path = webserver_config["root_path"]
+
+    cars = mod["cars"]
+    for _, car in cars.items():
+        car_component = car["component"]["name"]
+        car_version = car["component"]["version"]
+        car_update = car["component"]["update"]
+        if car_update:
+            if component == car_component and version == car_version:
+                path = join(
+                    root_path,
+                    "server",
+                    "Installed",
+                    "Vehicles",
+                    component,
+                    version,
+                    file,
+                )
+                if exists(path):
+                    return send_file(path)
+    abort(404)
+
+
+@app.route("/mod", methods=["GET"])
+def get_mod():
+    got = get_public_mod_info()
+    return json_response(got)
 
 
 @app.route("/signatures", methods=["GET"])
@@ -574,21 +563,6 @@ def get_signatures():
                 current_prop[key] = value
 
     return json_response({"mod": mod, "signatures": signatures})
-
-
-@app.route("/current", methods=["GET"])
-def current_mod_html():
-    got = get_public_mod_info()
-    if got is None:
-        abort(404)
-    mod = got["mod"]["mod"]
-    files = mod_filelist()
-    return render_template(
-        "current.html",
-        data=got,
-        suffix=VERSION_SUFFIX,
-        files=files,
-    )
 
 
 @app.after_request
