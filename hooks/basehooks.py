@@ -314,3 +314,7 @@ def on_flag_change(driver, old_flag, new_flag, newStatus):
 
 def on_tick(status):
     poll_status_server(status)
+
+
+def on_stop(status):
+    poll_status_server(status)

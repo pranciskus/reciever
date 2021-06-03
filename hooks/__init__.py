@@ -13,6 +13,7 @@ from hooks.basehooks import (
     on_garage_toggle,
     on_pitting,
     on_tick,
+    on_stop,
 )
 
 HOOKS = {}
@@ -39,3 +40,4 @@ register("onShownFlagChange", HOOKS, on_flag_change)
 register("onGarageToggle", HOOKS, on_garage_toggle)
 register("onPittingChange", HOOKS, on_pitting)
 register("onTick", HOOKS, on_tick)
+register("onStop", HOOKS, on_stop)

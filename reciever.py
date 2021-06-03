@@ -61,7 +61,6 @@ RECIEVER_HOOK_EVENTS = [
     onLowSpeed,
     onShownFlagChange,
     onStart,
-    onStop,
     onDriverSwap,
     onNewReplay,
     onNewResult,
@@ -76,6 +75,7 @@ RECIEVER_HOOK_EVENTS = [
     onGarageToggle,
     onPittingChange,
     onTick,
+    onStop,
 ]
 
 # load actual hooks
