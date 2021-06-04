@@ -4,6 +4,7 @@ from requests import post
 from threading import Thread
 from reciever import get_server_config
 from re import sub
+from os.path import join
 
 
 def poll_server_async(event):
@@ -21,6 +22,18 @@ def poll_server_status_async(status):
         pattern = r"/addmessage.*"
         callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
         got = post(callback_target, json=status)
+
+
+def publish_logfile():
+    config = get_server_config()
+    callback_target = config["mod"]["callback_target"]
+    if callback_target is not None:
+        secret = config["server"]["auth"]
+        pattern = r"/addmessage.*"
+        log_path = join(config["server"]["root_path"], "reciever.log")
+        files = {"log": open(log_path, "rb")}
+        callback_target = sub(pattern, f"/addlog/{secret}", callback_target)
+        got = post(callback_target, files=files)
 
 
 def get_slot_by_name(name, all_vehicles):
@@ -347,3 +360,7 @@ def on_tick(status):
 
 def on_stop(status):
     poll_status_server(status)
+
+
+def on_deploy():
+    publish_logfile()

@@ -51,6 +51,7 @@ from rf2.events.onNewBestLapTime import onNewBestLapTime, onNewPersonalBest
 from rf2.events.onLapCompleted import onLapCompleted
 from rf2.events.onPositionChange import onPositionChange, onUnderYellowPositionChange
 from rf2.events.onTick import onTick
+from rf2.events.onDeploy import onDeploy
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -76,6 +77,7 @@ RECIEVER_HOOK_EVENTS = [
     onPittingChange,
     onTick,
     onStop,
+    onDeploy,
 ]
 
 # load actual hooks
@@ -289,8 +291,9 @@ def deploy_server_config():
     server_config = get_server_config()
 
     got = deploy_server(server_config, rfm_contents, grip)
-
     soft_lock_toggle()
+    event_hooks_to_run = hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
+    onDeploy(None, None, event_hooks_to_run)  # call the hook
     return json_response({"is_ok": False})
 
 
