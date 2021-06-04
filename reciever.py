@@ -155,6 +155,7 @@ def poll_background_status(all_hooks):
     ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
     global mod_content
     new_content = get_server_mod(get_server_config())
+    excluded = ["onDeploy"]  # hooks with special concepts, e. g. lifecycle ones
     if new_content:
         mod_content = new_content
     while True:
@@ -162,7 +163,11 @@ def poll_background_status(all_hooks):
         got = get_server_status(get_server_config())
         for event_hook in RECIEVER_HOOK_EVENTS:
             event_name = event_hook.__name__
-            if got is not None and last_status is not None:
+            if (
+                got is not None
+                and last_status is not None
+                and event_name not in excluded
+            ):
                 event_hooks_to_run = (
                     all_hooks[event_name] if event_name in all_hooks else []
                 )
@@ -279,21 +284,27 @@ def deploy_server_config():
         return json_response({"is_ok": False, "syntax_failed": True})
 
     soft_lock_toggle()
-    # grip conditions
-    grip = {}
-    for key, value in request.files.items():
-        grip[key] = value
-    # paste the config
-    with open("mod.json", "w") as config:
-        config.write(config_contents)
+    try:
+        # grip conditions
+        grip = {}
+        for key, value in request.files.items():
+            grip[key] = value
+        # paste the config
+        with open("mod.json", "w") as config:
+            config.write(config_contents)
 
-    # reload the server config
-    server_config = get_server_config()
+        # reload the server config
+        server_config = get_server_config()
+        got = deploy_server(server_config, rfm_contents, grip)
 
-    got = deploy_server(server_config, rfm_contents, grip)
-    soft_lock_toggle()
-    event_hooks_to_run = hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
-    onDeploy(None, None, event_hooks_to_run)  # call the hook
+        event_hooks_to_run = (
+            hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
+        )
+        onDeploy(None, None, event_hooks_to_run)  # call the hook
+    except:
+        pass
+    finally:
+        soft_lock_toggle()
     return json_response({"is_ok": False})
 
 
