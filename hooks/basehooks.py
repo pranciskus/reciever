@@ -2,9 +2,10 @@ from time import time
 from json import dumps
 from requests import post
 from threading import Thread
-from reciever import get_server_config
+from reciever import get_server_config, chat
 from re import sub
 from os.path import join
+from os import linesep
 
 
 def poll_server_async(event):
@@ -364,3 +365,22 @@ def on_stop(status):
 
 def on_deploy():
     publish_logfile()
+
+
+def on_car_count_change(old_status_cars, new_status_cars, newStatus):
+    config = get_server_config()
+    old_slot_ids = []
+    welcome_message = config["mod"]["welcome_message"]
+
+    if welcome_message:
+        for old_car in old_status_cars:
+            old_slot_ids.append(old_car["slotID"])
+
+        for new_car in new_status_cars:
+            slot_id = new_car["slotID"]
+            driver_name = new_car["driverName"]
+            if slot_id not in old_slot_ids:
+                parts = welcome_message.split(linesep)
+                for part in parts:
+                    message = part.replace("{driver_name}", driver_name)
+                    chat(config, part.replace("{driver_name}", driver_name))

@@ -15,6 +15,7 @@ from hooks.basehooks import (
     on_tick,
     on_stop,
     on_deploy,
+    on_car_count_change,
 )
 
 HOOKS = {}
@@ -43,3 +44,4 @@ register("onPittingChange", HOOKS, on_pitting)
 register("onTick", HOOKS, on_tick)
 register("onStop", HOOKS, on_stop)
 register("onDeploy", HOOKS, on_deploy)
+register("onCarCountChange", HOOKS, on_car_count_change)
