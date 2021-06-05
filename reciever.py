@@ -4,7 +4,7 @@ from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
 from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
-from rf2.deploy import deploy_server, VERSION_SUFFIX
+from rf2.deploy import deploy_server, VERSION_SUFFIX, update_weather
 from rf2.setup import install_server
 from rf2.util import create_config, get_server_port, get_public_sim_server_port
 from os.path import join, exists, basename
@@ -251,6 +251,23 @@ def soft_lock_toggle():
             file.write("Nope")
 
 
+@app.route("/weather", methods=["POST"])
+def weather_update():
+    if last_status is not None and "not_running" not in last_status:
+        abort(403)
+
+    # we ignore anything except session lists
+    config_contents = request.form.get("config")
+    data = loads(config_contents)
+    config = get_server_config()
+    track = config["mod"]["track"][next(iter(config["mod"]["track"]))]
+    name = track["component"]["name"]
+    layout = track["layout"]
+    if config["mod"]["real_weather"]:
+        update_weather(config["server"]["root_path"], data["sessions"], name, layout)
+    return json_response({"is_ok": False})
+
+
 @app.route("/deploy", methods=["POST"])
 def deploy_server_config():
     if last_status is not None and "not_running" not in last_status:
@@ -297,6 +314,17 @@ def deploy_server_config():
         server_config = get_server_config()
         got = deploy_server(server_config, rfm_contents, grip)
 
+        track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
+        name = track["component"]["name"]
+        layout = track["layout"]
+
+        if server_config["mod"]["real_weather"]:
+            update_weather(
+                server_config["server"]["root_path"],
+                server_config["mod"]["sessions"],
+                name,
+                layout,
+            )
         event_hooks_to_run = (
             hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
         )

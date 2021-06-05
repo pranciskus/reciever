@@ -26,6 +26,7 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     )
     root_path = server_config["server"]["root_path"]
 
+    event_config = server_config["mod"]
     restore_vanilla(server_config)
     # build vehicle mods
     for workshop_id, vehicle in vehicles.items():
@@ -58,7 +59,6 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
 
     # set real versions
-    event_config = server_config["mod"]
     for _, vehicle in event_config["cars"].items():
         version = vehicle["component"]["version"]
         name = vehicle["component"]["name"]
@@ -180,16 +180,75 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     return True
 
 
+def update_weather(root_path: str, sessions: list, mod_name, layout):
+    properties = find_location_properties(root_path, mod_name, layout)
+
+    server_root = join(root_path, "server")
+    condition_files_root_path = join(server_root, "UserData", "player", "Settings")
+    weather_file_parent = join(condition_files_root_path, properties["SettingsFolder"])
+    weather_file_path = join(
+        weather_file_parent, properties["WET"].replace(".WET", "s.WET")
+    )
+    verbose_titles = {
+        "P1": "Practice Info",
+        "Q1": "Qualifying Info",
+        "R1": "Race Info",
+    }
+    weather_template = properties["WET_SOURCE"]
+    logging.info(f"Using the file {weather_template} to generate weather information")
+
+    with open(weather_template, "r") as weather_file:
+        content = weather_file.read()
+        # get head of weather file
+        altered_content = []
+        for line in content.splitlines():
+            # we assume this is the first block
+            if "[Practice Info]" in line:
+                break
+            altered_content.append(line)
+
+        weather_present = False
+        for session_type in ["P1", "Q1", "R1"]:
+            for session in sessions:
+                type = session["type"]
+                weather = session["weather"]
+                if type == session_type and weather:
+                    weather_present = True
+                    verbose_title = verbose_titles[type]
+                    altered_content.append(f"[{verbose_title}]")
+                    lines = weather.splitlines()
+                    for line in lines:
+                        altered_content.append(line)
+                    altered_content.append("")
+        with open(weather_file_path, "w") as weather_write_handle:
+            for line in altered_content:
+                weather_write_handle.write(line + "\n")
+        if weather_present:
+            # update server config
+            player_json = {}
+            player_json_path = join(
+                root_path, "server", "UserData", "player", "player.JSON"
+            )
+            with open(player_json_path, "r") as file:
+                player_json = load(file)
+
+            player_json["Race Conditions"]["CHAMP Weather"] = 5
+            player_json["Race Conditions"]["CURNT Weather"] = 5
+            player_json["Race Conditions"]["GPRIX Weather"] = 5
+            player_json["Race Conditions"]["MULTI Weather"] = 5
+
+            with open(player_json_path, "w") as file:
+                logging.info("Updating player.json to represent weather data")
+                dump(player_json, file, indent=4, separators=(",", ": "))
+
+
 def create_conditions(
     root_path: str, grip, conditions, mod_name: str, layout: str
 ) -> bool:
+    server_root = join(root_path, "server")
     if conditions is None:
         # conditions may be not configured at all
-
         logging.info("Omitting grip injection as there is nothing submitted")
-        return True
-
-    server_root = join(root_path, "server")
 
     properties = find_location_properties(root_path, mod_name, layout)
     condition_files_root_path = join(server_root, "UserData", "player", "Settings")
@@ -214,7 +273,6 @@ def create_conditions(
 
         with open(weather_file_path, "w") as weather_write_handle:
             weather_write_handle.write(content)
-
     return True
 
 

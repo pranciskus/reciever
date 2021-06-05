@@ -12,6 +12,7 @@ from rf2.util import (
     get_max_players,
 )
 from rf2.interaction import chat, do_action, Action
+from rf2.deploy import update_weather
 import logging
 from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
 from string import ascii_uppercase, digits
@@ -28,6 +29,14 @@ def oneclick_start_server(server_config: dict) -> bool:
         + f' +path="{server_root_path}"'
         + f"  +profile=player  +oneclick"
     )
+
+    track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
+    name = track["component"]["name"]
+    layout = track["layout"]
+    logging.info(f"Using {name}:{layout} for startup")
+
+    if server_config["mod"]["real_weather"]:
+        update_weather(root_path, server_config["mod"]["sessions"], name, layout)
 
     session_id_path = join(root_path, "reciever", "session_id.txt")
 

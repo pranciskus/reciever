@@ -88,6 +88,19 @@ def get_public_http_server_port(server_config: dict) -> int:
     return content["Multiplayer General Options"]["HTTP Server Port"]
 
 
+def get_public_sim_server_port(server_config: dict) -> int:
+    multiplayer_json = join(
+        server_config["server"]["root_path"],
+        "server",
+        "userData",
+        "player",
+        "Multiplayer.JSON",
+    )
+
+    content = load(open(multiplayer_json, "r"))
+    return content["Multiplayer General Options"]["HTTP Server Port"]
+
+
 def get_max_players(server_config: dict) -> int:
     player_json_path = join(
         server_config["server"]["root_path"],
@@ -168,6 +181,8 @@ def setup_environment(root_path):
     build_path = join(root_path, "build")
     steamcmd_path = join(root_path, "steamcmd")
     server_path = join(root_path, "steamcmd")
+
+    # TODO: ad items folder
 
     if not exists(build_path):
         print("Creating build path {}".format(build_path))
