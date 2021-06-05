@@ -148,6 +148,7 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
                 player_json["Race Conditions"][
                     "WarmupStartingTime"
                 ] = time_after_midnight
+            player_json["Race Conditions"]["Run Warmup"] = True
             multiplayer_json["Multiplayer Server Options"]["Warmup Time"] = length
 
         if type == "R1":
