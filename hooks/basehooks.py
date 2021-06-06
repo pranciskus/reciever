@@ -216,6 +216,8 @@ def on_pit_change(driver, old_status, status, newStatus):
     )
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     if status != "REQUEST":  # request is a bit too leaky for the public
         poll_server(
             {
@@ -225,7 +227,8 @@ def on_pit_change(driver, old_status, status, newStatus):
                 "type": "PS",
                 "event_time": event_time,
                 "session": session,
-                "slot_id": get_slot_by_name(driver, newStatus),
+                "slot_id":slot,
+                "laps": laps
             }
         )
 
