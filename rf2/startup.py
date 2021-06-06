@@ -35,9 +35,6 @@ def oneclick_start_server(server_config: dict) -> bool:
     layout = track["layout"]
     logging.info(f"Using {name}:{layout} for startup")
 
-    if server_config["mod"]["real_weather"]:
-        update_weather(root_path, server_config["mod"]["sessions"], name, layout)
-
     session_id_path = join(root_path, "reciever", "session_id.txt")
 
     with open(session_id_path, "w") as file:
