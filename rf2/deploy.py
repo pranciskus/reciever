@@ -1,4 +1,4 @@
-from os.path import join, exists, basename
+from os.path import join, exists, basename, pathsep
 from os import listdir, mkdir, getenv, unlink, stat
 from shutil import copy, rmtree, copytree, move
 from rf2.steam import run_steamcmd, install_mod
@@ -48,14 +48,27 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
 
         install_mod(server_config, int(workshop_id), track["component"]["name"])
 
-        create_conditions(
-            root_path,
-            grip_data,
-            conditions,
-            track["component"]["name"],
-            track["layout"],
-        )
-        # TODO cmd mods are not supported yet.
+        component_info = track["component"]
+        if component_info["update"]:
+            create_mas(server_config, component_info, True, False)
+            try:
+                build_cmp_mod(server_config, component_info, "Locations", True)
+            except Exception as e:
+                print(e)
+        try:
+            create_conditions(
+                root_path,
+                grip_data,
+                conditions,
+                track["component"]["name"],
+                track["layout"],
+            )
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            print("Error", e)
+
     build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
 
     # set real versions
@@ -453,17 +466,17 @@ def build_cmp_mod(
     if version == "latest" or version == "latest-even":
         # use the latest one or the lastest even version
         version = get_latest_version(
-            join(root_path, "server", "Installed", "Vehicles", name),
+            join(root_path, "server", "Installed", packageType, name),
             version == "latest",
         )
 
     update_version = version + VERSION_SUFFIX
 
     base_target_path = join(
-        root_path, f"server\\Installed\\Vehicles\\{name}\\{version}"
+        root_path, f"server\\Installed\\{packageType}\\{name}\\{version}"
     )
     target_path = join(
-        root_path, f"server\\Installed\\Vehicles\\{name}\\{update_version}"
+        root_path, f"server\\Installed\\{packageType}\\{name}\\{update_version}"
     )
 
     if not add_version_suffix:
@@ -490,6 +503,8 @@ def build_cmp_mod(
         .replace("location", location_path)
         .replace("mod_download_url", "")
     )
+    if packageType == "Locations":
+        data = data.replace("Type=2", "Type=1")
 
     cmp_file = join(getenv("APPDATA"), "cmpinfo.dat")
     with open(cmp_file, "w") as cmp_write:
@@ -613,7 +628,9 @@ def restore_vanilla(server_config: dict) -> bool:
         logging.info("Skipping update of the server itself.")
 
 
-def create_mas(server_config: dict, component_info: dict, add_version_suffix=False):
+def create_mas(
+    server_config: dict, component_info: dict, add_version_suffix=False, is_vehicle=True
+):
     root_path = server_config["server"]["root_path"]
     build_path = join(root_path, "build")
     name = component_info["name"]
@@ -621,10 +638,19 @@ def create_mas(server_config: dict, component_info: dict, add_version_suffix=Fal
     version = component_info["version"]
     if version == "latest" or version == "latest-even":
         # use the latest one or the lastest even version
-        version = get_latest_version(
-            join(root_path, "server", "Installed", "Vehicles", name),
-            version == "latest",
-        )
+        try:
+            version = get_latest_version(
+                join(
+                    root_path,
+                    "server",
+                    "Installed",
+                    "Vehicles" if is_vehicle else "Locations",
+                    name,
+                ),
+                version == "latest",
+            )
+        except Exception as e:
+            logging.error(e)
     if not add_version_suffix:
         target_path = join(build_path, name + ".mas")
     else:
@@ -745,7 +771,7 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
         for file in files:
             if ".mas" in file:
                 full_mas_path = join(mod_version_path, file)
-                extraction_path = join(root_path, "build", file)
+                extraction_path = join(root_path, "build", file + "_extraction")
                 if not exists(extraction_path):
                     mkdir(extraction_path)
                 cmd_line_gdb = '{} -x{} "*.gdb" -o{}'.format(
