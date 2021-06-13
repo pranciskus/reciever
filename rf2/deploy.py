@@ -18,6 +18,13 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
+    suffix = server_config["mod"]["suffix"]
+    global VERSION_SUFFIX
+    if suffix:
+        VERSION_SUFFIX = suffix
+        logging.info(f"Using {suffix} as version label")
+    else:
+        VERSION_SUFFIX = ".9apx"  # to reset between builds
     mod_info = server_config["mod"]["mod"]
     conditions = (
         server_config["mod"]["conditions"]
