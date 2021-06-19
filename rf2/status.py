@@ -69,6 +69,7 @@ def get_server_status(server_config: dict) -> dict:
     try:
         status_raw = get(target_url + "/rest/watch/sessionInfo").json()
         standings_raw = get(target_url + "/rest/watch/standings").json()
+        waypoints = get(target_url + "/navigation/state").json()
         session_info_raw = get(target_url + "/rest/sessions").json()
 
         result = {
@@ -98,6 +99,7 @@ def get_server_status(server_config: dict) -> dict:
                     "dark_cloud": status_raw["darkCloud"],
                 },
             },
+            "waypoints": waypoints,
         }
         # unsure if always working, so in a try catch to prevent complete abort
         try:
