@@ -227,8 +227,8 @@ def on_pit_change(driver, old_status, status, newStatus):
                 "type": "PS",
                 "event_time": event_time,
                 "session": session,
-                "slot_id":slot,
-                "laps": laps
+                "slot_id": slot,
+                "laps": laps,
             }
         )
 
@@ -387,3 +387,26 @@ def on_car_count_change(old_status_cars, new_status_cars, newStatus):
                 for part in parts:
                     message = part.replace("{driver_name}", driver_name)
                     chat(config, part.replace("{driver_name}", driver_name))
+
+
+def on_low_speed(driver, speed, location, nearby, team, additional, newStatus):
+
+    event_time = newStatus["currentEventTime"]
+    slot = get_slot_by_name(driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
+
+    session = newStatus["session"]
+    poll_server(
+        {
+            "driver": driver,
+            "type": "VL",
+            "event_time": event_time,
+            "session": session,
+            "slot_id": slot,
+            "laps": laps,
+            "nearby": nearby,
+            "speed": speed,
+            "location": location,
+        }
+    )
+    print("Car stationary: ", driver, nearby)
