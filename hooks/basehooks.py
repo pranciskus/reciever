@@ -396,17 +396,24 @@ def on_low_speed(driver, speed, location, nearby, team, additional, newStatus):
     laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
 
     session = newStatus["session"]
+
+    print("Car stationary: ", driver, nearby)
+
+
+def on_driver_swap(slotId, old_driver, new_driver, newStatus):
+    event_time = newStatus["currentEventTime"]
+    slot = get_slot_by_name(new_driver, newStatus)
+    laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
+
+    session = newStatus["session"]
     poll_server(
         {
-            "driver": driver,
-            "type": "VL",
+            "type": "DS",
             "event_time": event_time,
             "session": session,
             "slot_id": slot,
             "laps": laps,
-            "nearby": nearby,
-            "speed": speed,
-            "location": location,
+            "old_driver": old_driver,
+            "new_driver": new_driver,
         }
     )
-    print("Car stationary: ", driver, nearby)
