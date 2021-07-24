@@ -298,7 +298,13 @@ def create_conditions(
 
 def get_latest_version(root_path: str, latest=True) -> str:
     versions = listdir(root_path)
-    versions.sort(key=LooseVersion)
+    version_sort_failed = False
+    try:
+        versions.sort(key=LooseVersion)
+    except:
+        versions = True
+        logging.error("Version sort failed. Falling back to filesystem sorting")
+        versions.sort()
     if len(versions) == 0:
         raise Exception("There are no versions to choose from")
     if latest:
