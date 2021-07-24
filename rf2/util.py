@@ -28,40 +28,6 @@ def get_main_window(server_config: dict):
     return dialog
 
 
-def set_slider_value(slider: WindowSpecification, value: int):
-    slider.set_position(value)
-
-
-def set_updown_value(updown: WindowSpecification, value: int):
-    updown.set_text(value)
-
-
-def select_from_list(listbox: WindowSpecification, listElements: dict):
-    list_box_items = listbox.item_texts()
-    for element in listElements:
-        index = list_box_items.index(element)
-        if index >= 0:
-            listbox.select(index)
-
-
-def set_window_elements_value(elements: dict, container: WindowSpecification):
-    for key, value in elements.items():
-        if "edit" in key.lower():
-            container[key].set_text(value)
-        if "combo" in key.lower():
-            select_from_list(container[key], value)
-        if "updown" in key.lower():
-            container[key].SetValue(value)
-        if "Trackbar" in key:
-            container[key].set_position(value)
-        if "check" in key.lower() or "radio" in key.lower():
-            if value:
-                container[key].check()
-            else:
-                container[key].uncheck(value)
-        sleep(0.5)
-
-
 def get_server_port(server_config: dict) -> int:
     player_json_path = join(
         server_config["server"]["root_path"],
