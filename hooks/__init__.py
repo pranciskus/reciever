@@ -18,6 +18,7 @@ from hooks.basehooks import (
     on_car_count_change,
     on_low_speed,
     on_driver_swap,
+    on_state_change,
 )
 
 HOOKS = {}
@@ -49,3 +50,4 @@ register("onDeploy", HOOKS, on_deploy)
 register("onCarCountChange", HOOKS, on_car_count_change)
 register("onLowSpeed", HOOKS, on_low_speed)
 register("onDriverSwap", HOOKS, on_driver_swap)
+register("onStateChange", HOOKS, on_state_change)

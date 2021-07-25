@@ -2,10 +2,6 @@ from os.path import join, exists
 from os import remove
 from time import sleep
 from rf2.util import (
-    set_slider_value,
-    set_updown_value,
-    select_from_list,
-    set_window_elements_value,
     get_server_port,
     get_max_players,
 )

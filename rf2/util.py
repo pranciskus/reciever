@@ -125,7 +125,6 @@ def create_config():
     secret = get_secret()
     config_blob = {
         "root_path": root_path,
-        "public_ip": "localhost",
         "port": port,
         "host": "0.0.0.0",
         "auth": secret,

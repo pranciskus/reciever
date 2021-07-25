@@ -8,7 +8,6 @@ from rf2.util import get_server_port, get_public_http_server_port
 import logging
 from os import listdir
 from time import time
-from psutil import cpu_percent, virtual_memory
 from time import time
 
 
@@ -85,8 +84,6 @@ def get_server_status(server_config: dict) -> dict:
             "keys": is_unlocked,
             "build": open(version_txt).readlines()[0].strip(),
             "release": reciever_release,
-            "cpu": cpu_percent(percpu=True),
-            "memory": virtual_memory()._asdict(),
             "session_id": session_id,
             "weather": {
                 "ambient": status_raw["ambientTemp"],

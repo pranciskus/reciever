@@ -58,9 +58,12 @@ def get_last_lap_time(name, all_vehicles):
     return None
 
 
-def poll_server(event):
-    background_thread = Thread(target=poll_server_async, args=(event,), daemon=True)
-    background_thread.start()
+def poll_server(event, sync=False):
+    if not sync:
+        background_thread = Thread(target=poll_server_async, args=(event,), daemon=True)
+        background_thread.start()
+    else:
+        poll_server_async(event)
 
 
 def poll_status_server(status):
@@ -428,3 +431,7 @@ def on_driver_swap(slotId, old_driver, new_driver, newStatus):
             "new_driver": new_driver,
         }
     )
+
+
+def on_state_change(descriptor, args):
+    poll_server({"type": "SC", "event": descriptor, "args": args}, True)

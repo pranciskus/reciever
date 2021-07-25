@@ -52,6 +52,7 @@ from rf2.events.onLapCompleted import onLapCompleted
 from rf2.events.onPositionChange import onPositionChange, onUnderYellowPositionChange
 from rf2.events.onTick import onTick
 from rf2.events.onDeploy import onDeploy
+from rf2.events.onStateChange import onStateChange
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -78,6 +79,7 @@ RECIEVER_HOOK_EVENTS = [
     onTick,
     onStop,
     onDeploy,
+    onStateChange,
 ]
 
 # load actual hooks
@@ -301,6 +303,12 @@ def deploy_server_config():
         return json_response({"is_ok": False, "syntax_failed": True})
 
     soft_lock_toggle()
+    status_hooks = (
+        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
+    )
+    onStateChange(
+        "Locked installation to prevent double deployments", None, status_hooks
+    )
     try:
         # grip conditions
         grip = {}
@@ -309,10 +317,13 @@ def deploy_server_config():
         # paste the config
         with open("mod.json", "w") as config:
             config.write(config_contents)
-
         # reload the server config
         server_config = get_server_config()
-        got = deploy_server(server_config, rfm_contents, grip)
+
+        onStateChange("Starting deployment", None, status_hooks)
+        got = deploy_server(
+            server_config, rfm_contents, grip, onStateChange, status_hooks
+        )
 
         track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
         name = track["component"]["name"]
@@ -329,8 +340,8 @@ def deploy_server_config():
             hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
         )
         onDeploy(None, None, event_hooks_to_run)  # call the hook
-    except:
-        pass
+    except Exception as e:
+        onStateChange("Deployment failed", str(e), status_hooks)
     finally:
         soft_lock_toggle()
     return json_response({"is_ok": False})

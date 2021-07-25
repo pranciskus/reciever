@@ -14,7 +14,9 @@ from rf2.util import get_server_port
 VERSION_SUFFIX = ".9apx"
 
 
-def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
+def deploy_server(
+    server_config: dict, rfm_contents: str, grip_data, onStateChange, status_hooks
+) -> bool:
     logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
@@ -34,25 +36,33 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
     root_path = server_config["server"]["root_path"]
 
     event_config = server_config["mod"]
+    onStateChange("Restoring vanilla state and doing Steam update", None, status_hooks)
     restore_vanilla(server_config)
     # build vehicle mods
     for workshop_id, vehicle in vehicles.items():
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
+            onStateChange("Installing workshop item", workshop_id, status_hooks)
             run_steamcmd(server_config, "add", workshop_id)
         component_info = vehicle["component"]
         install_mod(server_config, int(workshop_id), component_info["name"])
+        onStateChange("Installing vehicle", component_info["name"], status_hooks)
         if component_info["update"]:
             create_mas(server_config, component_info, True)
             build_cmp_mod(server_config, component_info, "Vehicles", True)
+            onStateChange(
+                "Creating cmp mod for vehicle", component_info["name"], status_hooks
+            )
 
     used_track = None
     for workshop_id, track in tracks.items():
         used_track = track
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
+            onStateChange("Installing workshop item", workshop_id, status_hooks)
             run_steamcmd(server_config, "add", workshop_id)
 
+        onStateChange("Installing track", track["component"]["name"], status_hooks)
         install_mod(server_config, int(workshop_id), track["component"]["name"])
 
         component_info = track["component"]
@@ -60,9 +70,14 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
             create_mas(server_config, component_info, True, False)
             try:
                 build_cmp_mod(server_config, component_info, "Locations", True)
+                onStateChange(
+                    "Creating cmp mod for track", component_info["name"], status_hooks
+                )
             except Exception as e:
                 print(e)
         try:
+
+            onStateChange("Create conditions", None, status_hooks)
             create_conditions(
                 root_path,
                 grip_data,
@@ -71,11 +86,17 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
                 track["layout"],
             )
         except Exception as e:
+            onStateChange("Create conditions failed", str(e), status_hooks)
             import traceback
 
             traceback.print_exc()
             print("Error", e)
 
+    onStateChange(
+        "Building event",
+        "{} {}".format(mod_info["name"], mod_info["version"]),
+        status_hooks,
+    )
     build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
 
     # set real versions
@@ -101,6 +122,7 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
             )
         track["component"]["version"] = version
     path = join(root_path, "reciever", "mod.json")
+    onStateChange("Placed mod.json", None, status_hooks)
     logging.info("Placing updated mod.json")
     with open(path, "w") as file:
         file.write(dumps(event_config))
@@ -126,9 +148,16 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
         laps = session["laps"]
         start = session["start"]
         time_after_midnight = None
+        onStateChange("Adding session", session["type"], status_hooks)
         if start and ":" in start:
             time_parts = start.split(":")
             time_after_midnight = int(time_parts[0]) * 60 + int(time_parts[1])
+
+            onStateChange(
+                "Changing start time for session",
+                session["type"] + ": " + session["start"],
+                status_hooks,
+            )
             logging.info(
                 "Session {} will recieve a start time: {} -> {} minutes after midnight".format(
                     type, start, time_after_midnight
@@ -188,15 +217,19 @@ def deploy_server(server_config: dict, rfm_contents: str, grip_data) -> bool:
                 player_json["Game Options"]["MULTI Race Finish Criteria"] = 2
                 player_json["Game Options"]["MULTI Race Time"] = length
 
+    onStateChange("Updating player.json", None, status_hooks)
     with open(player_json_path, "w") as file:
         logging.info("Updating player.json to represent session dimensions")
         dump(player_json, file, indent=4, separators=(",", ": "))
 
+    onStateChange("Updating multiplayer.json", None, status_hooks)
     with open(multiplayer_json_path, "w") as file:
         logging.info("Updating multiplayer.json to represent session dimensions")
         dump(multiplayer_json, file, indent=4, separators=(",", ": "))
 
     logging.info("Finished server deploy")
+
+    onStateChange("Deployment finished successfully", None, status_hooks)
     return True
 
 
@@ -503,10 +536,6 @@ def build_cmp_mod(
         data = f.read()
     # replace values from parameters
     # TODO LOCATION -> MAYBE THE LOCATION IN PACKAGES (fullpath)
-    public_ip = server_config["server"]["public_ip"]
-    public_port = server_config["server"]["port"]
-    # "http://localhost:8081/Bentley_Continental_GT3_2020_2020_v1.051apx.rfcmp"
-    mod_download_url = f"http://{public_ip}:{public_port}/"
     location_path = join(root_path, f"server\\Packages\\{name}_v{update_version}.rfcmp")
     data = (
         data.replace("component_name", name)
