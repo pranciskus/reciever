@@ -157,7 +157,10 @@ def poll_background_status(all_hooks):
     ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
     global mod_content
     new_content = get_server_mod(get_server_config())
-    excluded = ["onDeploy"]  # hooks with special concepts, e. g. lifecycle ones
+    excluded = [
+        "onDeploy",
+        "onStateChange",
+    ]  # hooks with special concepts, e. g. lifecycle ones
     if new_content:
         mod_content = new_content
     while True:
