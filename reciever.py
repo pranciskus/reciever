@@ -274,7 +274,11 @@ def weather_update():
 def deploy_server_config():
     if last_status is not None and "not_running" not in last_status:
         abort(403)
+    status_hooks = (
+        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
+    )
 
+    onStateChange("Deployment starting", None, status_hooks)
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
     if not config_contents:
@@ -303,9 +307,6 @@ def deploy_server_config():
         return json_response({"is_ok": False, "syntax_failed": True})
 
     soft_lock_toggle()
-    status_hooks = (
-        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
-    )
     onStateChange(
         "Locked installation to prevent double deployments", None, status_hooks
     )
