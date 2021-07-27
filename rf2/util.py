@@ -94,7 +94,7 @@ def get_free_tcp_port(max_tries=10, default_port=8000):
 
 
 def get_secret(length=15):
-    alphabet = string.ascii_letters + string.digits + string.punctuation
+    alphabet = string.ascii_letters + string.digits
     secret = "".join(secrets.choice(alphabet) for i in range(length))
     return secret
 

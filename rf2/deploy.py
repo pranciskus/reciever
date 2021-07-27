@@ -302,6 +302,7 @@ def create_conditions(
     if conditions is None:
         # conditions may be not configured at all
         logging.info("Omitting grip injection as there is nothing submitted")
+        return True
 
     properties = find_location_properties(root_path, mod_name, layout)
     condition_files_root_path = join(server_root, "UserData", "player", "Settings")
