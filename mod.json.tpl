@@ -71,5 +71,6 @@
     "version": "1.0.dehhd",
     "rfm": ""
   },
-  "branch": "public"
+  "branch": "public",
+  "callback_target": null
 }
