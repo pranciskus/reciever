@@ -34,7 +34,13 @@ jobs:
         
       - name: Add pth to folder
         run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip python39._pth
-        
+
+      - name: Create separate folder structures
+        run: mkdir -p /home/runner/work/reciever/reciever/APX/reciever
+
+      - name: Move reciever structures
+        run: cd /home/runner/work/reciever/reciever/ && mv !(APX) /home/runner/work/reciever/APX/reciever
+
       - name: Add reciever components to zip
         run: cd /home/runner/work/reciever/reciever/ && zip -ur /home/runner/work/reciever/apx-build/release.zip *
         
