@@ -39,7 +39,7 @@ jobs:
         run: mkdir -p /home/runner/work/reciever/reciever/APX/reciever
 
       - name: Move reciever structures
-        run: cd /home/runner/work/reciever/reciever/ && mv !(APX) /home/runner/work/reciever/APX/reciever
+        run: cd /home/runner/work/reciever/reciever/ && shopt -s extglob && mv !(APX) /home/runner/work/reciever/APX/reciever
 
       - name: Add reciever components to zip
         run: cd /home/runner/work/reciever/reciever/ && zip -ur /home/runner/work/reciever/apx-build/release.zip *
