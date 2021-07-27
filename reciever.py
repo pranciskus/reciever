@@ -14,7 +14,7 @@ from json import loads, dumps
 from time import sleep, time
 from math import ceil
 from shutil import copytree, copyfile
-from sys import exit
+from sys import exit, argv
 from pathlib import Path
 import hashlib
 from logging import error, handlers, Formatter, getLogger, DEBUG, INFO, info
@@ -276,6 +276,9 @@ def weather_update():
 @app.route("/deploy", methods=["POST"])
 def deploy_server_config():
     if last_status is not None and "not_running" not in last_status:
+        onStateChange(
+            "Deployment aborted as the server is still running", None, status_hooks
+        )
         abort(403)
     status_hooks = (
         hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
@@ -639,7 +642,7 @@ if __name__ == "__main__":
         if "admin" in group.lower():
             assumed_admin = True
             break
-    if assumed_admin:
+    if assumed_admin and "--admin" not in argv:
         raise Exception(
             "The reciever cannot be run as administrator. Use a dedicated user"
         )
