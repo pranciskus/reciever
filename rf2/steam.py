@@ -14,6 +14,12 @@ STEAMCMDCOMMANDS = {
 }
 
 
+"""
+The reciever can probably work without copying steam workshop items into packages/
+"""
+DONT_COPY_INTO_PACKAGES = True
+
+
 def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     """
     Runs the given steam cmd from STEAMCMDCOMMANDS
@@ -124,12 +130,16 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
     # copy files into rf2 packages dir
     copy_results = []
     for rf_mod in files:
-        rfmod_full_path = join(source_path, rf_mod)
-        rfmod_target_path = join(root_path, "server\\Packages")
+        if DONT_COPY_INTO_PACKAGES:
+            rfmod_full_path = join(source_path, rf_mod)
+            copy_results.append(rfmod_full_path)
+        else:
+            rfmod_full_path = join(source_path, rf_mod)
+            rfmod_target_path = join(root_path, "server\\Packages")
 
-        rfmod_target_full_path = join(rfmod_target_path, rf_mod)
-        copy(rfmod_full_path, rfmod_target_path)
-        copy_results.append(rfmod_target_full_path)
+            rfmod_target_full_path = join(rfmod_target_path, rf_mod)
+            copy(rfmod_full_path, rfmod_target_path)
+            copy_results.append(rfmod_target_full_path)
 
     # install the mod into rf2 itself
     mod_mgr_cmdline = f"{root_path}\\server\\Bin64\\ModMgr.exe -c{root_path}\\server\\"
