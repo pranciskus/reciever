@@ -1,5 +1,5 @@
 @echo off
-python.exe --version
+..\python.exe --version
 
 if not exist "server.json" (
   REM add demo mod

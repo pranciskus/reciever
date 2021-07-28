@@ -12,7 +12,10 @@ def poll_server_async(event):
     config = get_server_config()
     callback_target = config["mod"]["callback_target"]
     if callback_target is not None:
-        got = post(callback_target, json=event)
+        try:
+            got = post(callback_target, json=event)
+        except:
+            pass
 
 
 def poll_server_status_async(status):
@@ -22,7 +25,10 @@ def poll_server_status_async(status):
         secret = config["server"]["auth"]
         pattern = r"/addmessage.*"
         callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
-        got = post(callback_target, json=status)
+        try:
+            got = post(callback_target, json=status)
+        except:
+            pass
 
 
 def publish_logfile():
@@ -34,7 +40,10 @@ def publish_logfile():
         log_path = join(config["server"]["root_path"], "reciever.log")
         files = {"log": open(log_path, "rb")}
         callback_target = sub(pattern, f"/addlog/{secret}", callback_target)
-        got = post(callback_target, files=files)
+        try:
+            got = post(callback_target, files=files)
+        except:
+            pass
 
 
 def get_slot_by_name(name, all_vehicles):
