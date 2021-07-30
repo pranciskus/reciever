@@ -10,6 +10,7 @@ from distutils.version import LooseVersion
 import logging
 from rf2.steam import get_entries_from_mod
 from rf2.util import get_server_port
+from datetime import datetime
 
 VERSION_SUFFIX = ".9apx"
 
@@ -27,7 +28,29 @@ def deploy_server(
         logging.info(f"Using {suffix} as version label")
     else:
         VERSION_SUFFIX = ".9apx"  # to reset between builds
+
     mod_info = server_config["mod"]["mod"]
+    if "%" in VERSION_SUFFIX:
+        now = datetime.now()
+        VERSION_SUFFIX = now.strftime(VERSION_SUFFIX)
+        server_config["mod"]["suffix"] = VERSION_SUFFIX
+        logging.info("The package suffix was parsed to {}".format(VERSION_SUFFIX))
+
+    if "%" in mod_info["version"]:
+        now = datetime.now()
+        mod_info["version"] = now.strftime(mod_info["version"])
+        server_config["mod"]["mod"]["version"] = mod_info["version"]
+        logging.info("The mod version was parsed to {}".format(mod_info["version"]))
+
+    if "%" in VERSION_SUFFIX or "%" in mod_info["version"]:
+        onStateChange("Create conditions failed", str(e), status_hooks)
+        logging.error(
+            "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
+        )
+        raise Exception(
+            "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
+        )
+
     conditions = (
         server_config["mod"]["conditions"]
         if "conditions" in server_config["mod"]
