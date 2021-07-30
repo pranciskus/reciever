@@ -11,7 +11,7 @@ if not exist "server.json" (
   REM insta install dependencies
   ..\python.exe -m pip install -r requirements.txt
   
-  ..\python.exe reciever.py
+  ..\python.exe reciever.py --admin
 ) else (
-  ..\python.exe reciever.py
+  ..\python.exe reciever.py --admin
 )
