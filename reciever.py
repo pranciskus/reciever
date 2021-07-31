@@ -114,6 +114,16 @@ def get_server_config() -> dict:
     return {"mod": read_mod_config(), "server": read_webserver_config()}
 
 
+def never_deployed() -> bool:
+    old_config = get_server_config()
+    return (
+        old_config["mod"]["server"]["overwrites"]["Multiplayer.JSON"][
+            "Multiplayer Server Options"
+        ]["Default Game Name"]
+        == "[APX] PLACEHOLDER EVENT 1337 ##"
+    )
+
+
 def check_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -165,35 +175,37 @@ def poll_background_status(all_hooks):
         mod_content = new_content
     while True:
         global last_status
-        got = get_server_status(get_server_config())
-        for event_hook in RECIEVER_HOOK_EVENTS:
-            event_name = event_hook.__name__
-            if (
-                got is not None
-                and last_status is not None
-                and event_name not in excluded
-            ):
-                event_hooks_to_run = (
-                    all_hooks[event_name] if event_name in all_hooks else []
-                )
-                if "not_running" not in got:
-                    try:
 
-                        event_hook(
-                            last_status,
-                            got,
-                            event_hooks_to_run,
-                        )
-                    except:
-                        pass
-                else:
-                    if event_name == "onStop":
-                        event_hook(
-                            last_status,
-                            got,
-                            event_hooks_to_run,
-                        )
-        last_status = got
+        if not never_deployed():
+            got = get_server_status(get_server_config())
+            for event_hook in RECIEVER_HOOK_EVENTS:
+                event_name = event_hook.__name__
+                if (
+                    got is not None
+                    and last_status is not None
+                    and event_name not in excluded
+                ):
+                    event_hooks_to_run = (
+                        all_hooks[event_name] if event_name in all_hooks else []
+                    )
+                    if "not_running" not in got:
+                        try:
+
+                            event_hook(
+                                last_status,
+                                got,
+                                event_hooks_to_run,
+                            )
+                        except:
+                            pass
+                    else:
+                        if event_name == "onStop":
+                            event_hook(
+                                last_status,
+                                got,
+                                event_hooks_to_run,
+                            )
+            last_status = got
         sleep(1)
 
 
@@ -275,7 +287,12 @@ def weather_update():
 
 @app.route("/deploy", methods=["POST"])
 def deploy_server_config():
-    if last_status is not None and "not_running" not in last_status:
+    # only apply lock protection if the server was actually deployed once
+    if (
+        not never_deployed()
+        and last_status is not None
+        and "not_running" not in last_status
+    ):
         onStateChange(
             "Deployment aborted as the server is still running", None, status_hooks
         )
