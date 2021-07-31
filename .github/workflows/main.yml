@@ -26,6 +26,9 @@ jobs:
       - name: Download pip
         run: curl https://bootstrap.pypa.io/get-pip.py -o /home/runner/work/reciever/apx-build/get-pip.py
       
+      - name: Add pip to folder
+        run: cd  /home/runner/work/reciever/apx-build/ && zip -ur /home/runner/work/reciever/apx-build/release.zip get-pip.py
+
       - name: show build directory
         run: ls /home/runner/work/reciever/apx-build/
         
