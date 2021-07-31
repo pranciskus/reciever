@@ -23,6 +23,9 @@ jobs:
       - name: Download Python 3.9
         run: curl https://www.python.org/ftp/python/3.9.1/python-3.9.1-embed-amd64.zip -o /home/runner/work/reciever/apx-build/release.zip
       
+      - name: Download pip
+        run: curl https://bootstrap.pypa.io/get-pip.py -o /home/runner/work/reciever/apx-build/get-pip.py
+      
       - name: show build directory
         run: ls /home/runner/work/reciever/apx-build/
         
