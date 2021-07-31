@@ -9,7 +9,7 @@
           "Max MP Players": 30,
           "Maximum AI": 30,
           "Enforce Real Name": true,
-          "Default Game Name": "[APX] PLACEHOLDER EVENT 1337",
+          "Default Game Name": "[APX] PLACEHOLDER EVENT 1337 ##",
           "Allowed Traction Control": 3,
           "Allowed Antilock Brakes": 2,
           "Allowed Stability Control": 2,
