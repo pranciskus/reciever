@@ -458,7 +458,7 @@ def build_mod(
     for key, value in replacements.items():
         data = data.replace("#" + key, value)
 
-    pkg_info_path = join(getenv("APPDATA"), "pkginfo.dat")
+    pkg_info_path = join(root_path, "reciever", "pkginfo.dat")
     # write data
     with open(pkg_info_path, "w") as cmp_write:
         cmp_write.write(data)
@@ -579,7 +579,7 @@ def build_cmp_mod(
     if packageType == "Locations":
         data = data.replace("Type=2", "Type=1")
 
-    cmp_file = join(getenv("APPDATA"), "cmpinfo.dat")
+    cmp_file = join(root_path, "reciever", "cmpinfo.dat")
     with open(cmp_file, "w") as cmp_write:
         cmp_write.write(data)
 
