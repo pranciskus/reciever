@@ -38,6 +38,17 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
         )
     else:
         command_line = steam_path + " " + STEAMCMDCOMMANDS[command]
+    bandwith = (
+        server_config["mod"]["steamcmd_bandwith"]
+        if "steamcmd_bandwith" in server_config["mod"]
+        else 0
+    )
+    if bandwith > 0:
+        logging.info("Enforcing steam bandwith limit by {} kbit/s".format(bandwith))
+        command_line = command_line.replace(
+            "+login anonymous",
+            "+login anonymous +set_download_throttle {}".format(bandwith),
+        )
 
     if arg is not None:
         command_line = command_line + " " + arg
