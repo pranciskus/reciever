@@ -657,6 +657,23 @@ def restore_vanilla(server_config: dict) -> bool:
         join(user_data_path, "player", "Settings"): [],
     }
 
+    collect_results_replays = (
+        server_config["mod"]["collect_results_replays"]
+        if "collect_results_replays" in server_config["mod"]
+        else False
+    )
+
+    if collect_results_replays:
+        logging.info("Making sure replay and results folder will persist")
+        replays_path = join(server_root_path, "UserData", "Replays", "apx-keep.txt")
+        with open(replays_path, "w") as file:
+            file.write("No delete, kthxbye")
+        logging.info("Wrote lockfile into {}".format(replays_path))
+        results_path = join(server_root_path, "UserData", "Log", "apx-keep.txt")
+        with open(results_path, "w") as file:
+            file.write("No delete, kthxbye")
+        logging.info("Wrote lockfile into {}".format(results_path))
+
     for folder_path, folders in folder_paths.items():
         if not exists(join(folder_path, "apx-keep.txt")):
             if exists(folder_path):
