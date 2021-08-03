@@ -410,6 +410,7 @@ def build_mod(
                 join(root_path, "server", "Installed", "Vehicles", name),
                 version == "latest",
             )
+            logging.info(f"Using {version} as mod version for item {name}")
             print("Using", version, "as mod version for item", name)
 
         line = 'Vehicle="' + name + " v" + version + ',0"'
@@ -418,7 +419,7 @@ def build_mod(
                 # as the entry contains the pit group -> get rid of it
                 line = line + ' "' + entry.split(":")[0] + ',1"'
         else:
-            entries = get_entries_from_mod(root_path, name)
+            entries = get_entries_from_mod(root_path, name, version)
             for entry in entries:
                 line = line + ' "' + entry + ',1"'
 

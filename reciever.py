@@ -360,14 +360,16 @@ def deploy_server_config():
                 name,
                 layout,
             )
+
+        onStateChange("Deployment successfull", None, status_hooks)
+    except Exception as e:
+        logger.info(e)
+    finally:
+        soft_lock_toggle()
         event_hooks_to_run = (
             hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
         )
         onDeploy(None, None, event_hooks_to_run)  # call the hook
-    except Exception as e:
-        onStateChange("Deployment failed", str(e), status_hooks)
-    finally:
-        soft_lock_toggle()
     return json_response({"is_ok": False})
 
 

@@ -91,9 +91,16 @@ def get_mod_files_from_folder(source_path: str) -> list:
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
 
 
-def get_entries_from_mod(root_path, component_name: str):
+def get_entries_from_mod(root_path, component_name: str, version: str):
     temp_path = tempfile.mkdtemp()
-    comp_path = join(root_path, "server", "Installed", "Vehicles", component_name)
+    comp_path = join(
+        root_path, "server", "Installed", "Vehicles", component_name, version
+    )
+    logging.info(
+        "Trying to extract the vehicle definitions for component {}".format(
+            component_name
+        )
+    )
     if not exists(comp_path):
         logging.info("The mod {} does not exists".format(comp_path))
         return []
@@ -101,10 +108,26 @@ def get_entries_from_mod(root_path, component_name: str):
     files = list(Path(comp_path).rglob("*.mas"))
     for file in files:
         cmd_line_extract = '{} -x{} "*.veh" -o{}'.format(mod_mgr_path, file, temp_path)
+        logging.info(
+            "Executing command {} for vehicle extraction".format(cmd_line_extract)
+        )
         p = subprocess.Popen(cmd_line_extract, shell=True, stderr=subprocess.PIPE)
-        p.wait()
-
+        return_code = p.wait()
+        if return_code != 0:
+            raise Exception(
+                "We did not manage to extract any vehicle definitions. Check the used version."
+            )
     veh_files = listdir(temp_path)
+    logging.info(
+        "Found {} files as vehicle definition in {}".format(len(veh_files), temp_path)
+    )
+    if len(veh_files) == 0:
+        logging.exception(
+            "We did not manage to extract any vehicle definitions. Check the used version."
+        )
+        raise Exception(
+            "We did not manage to extract any vehicle definitions. Check the used version."
+        )
     pattern = r"Description\s{0,}=\s{0,}\"(.+)\""
     entries = []
     for file in veh_files:
