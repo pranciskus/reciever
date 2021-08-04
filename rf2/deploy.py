@@ -68,6 +68,17 @@ def deploy_server(
             onStateChange("Installing workshop item", workshop_id, status_hooks)
             run_steamcmd(server_config, "add", workshop_id)
         component_info = vehicle["component"]
+        update = component_info["update"]
+        official = component_info["official"]
+
+        if update and official:
+            logging.info(
+                "Requested update on top of component {} which is marked as official content. Selecting latest-even version".format(
+                    component_info["name"]
+                )
+            )
+            component_info["version"] = "latest-even"
+
         install_mod(server_config, int(workshop_id), component_info["name"])
         onStateChange("Installing vehicle", component_info["name"], status_hooks)
         if component_info["update"]:
@@ -87,8 +98,18 @@ def deploy_server(
 
         onStateChange("Installing track", track["component"]["name"], status_hooks)
         install_mod(server_config, int(workshop_id), track["component"]["name"])
-
         component_info = track["component"]
+        update = component_info["update"]
+        official = component_info["official"]
+
+        if update and official:
+            logging.info(
+                "Requested update on top of component {} which is marked as official content. Selecting latest-even version".format(
+                    component_info["name"]
+                )
+            )
+            component_info["version"] = "latest-even"
+
         if component_info["update"]:
             create_mas(server_config, component_info, True, False)
             try:
