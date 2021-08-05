@@ -652,7 +652,31 @@ def restore_vanilla(server_config: dict) -> bool:
         join(reciever_root_path, "templates", "CustomPluginVariables.JSON"),
         plugin_json_path,
     )
+    # remove all plugins
+    plugins_path = join(root_path, "server", "Bin64", "plugins")
+    files = listdir(plugins_path)
+    for plugin in files:
+        full_plugin_path = join(plugins_path, plugin)
+        if plugin.endswith(".dll"):
+            unlink(full_plugin_path)
+            logging.info(f"Removed {plugin} to restore vanilla state")
+    with open(plugin_json_path, "w") as file_handle:
+        logging.info(
+            f"Overwriting CustomPluginVariables.JSON with an empty dict as there are no plugins at this moment"
+        )
+        file_handle.write("{}")
     logging.info("Wrote empty json into custom variables JSON from templates")
+    with open(plugin_json_path, "r") as read_handle:
+        content = loads(read_handle.read())
+        if "plugins" in server_config["mod"]:
+            plugins_to_add = server_config["mod"]["plugins"]
+            for key, value in plugins_to_add.items():
+                logging.info(
+                    f"Adding plugin definition for {key} to CustomPluginVariables.JSON"
+                )
+                content[key] = value
+            with open(plugin_json_path, "w") as write_handle:
+                write_handle.write(dumps(content))
 
     overwrites = server_config["mod"]["server"]["overwrites"]
     for overwrite_file, overwrite_options in overwrites.items():
@@ -687,10 +711,16 @@ def restore_vanilla(server_config: dict) -> bool:
 
     if collect_results_replays:
         logging.info("Making sure replay and results folder will persist")
+        if not exists(join(server_root_path, "UserData", "Replays")):
+            logging.info("Replays path was not yet existing, creating")
+            mkdir(join(server_root_path, "UserData", "Replays"))
         replays_path = join(server_root_path, "UserData", "Replays", "apx-keep.txt")
         with open(replays_path, "w") as file:
             file.write("No delete, kthxbye")
         logging.info("Wrote lockfile into {}".format(replays_path))
+        if not exists(join(server_root_path, "UserData", "Log")):
+            logging.info("Logs path was not yet existing, creating")
+            mkdir(join(server_root_path, "UserData", "Log"))
         results_path = join(server_root_path, "UserData", "Log", "apx-keep.txt")
         with open(results_path, "w") as file:
             file.write("No delete, kthxbye")

@@ -363,7 +363,7 @@ def deploy_server_config():
 
         onStateChange("Deployment successfull", None, status_hooks)
     except Exception as e:
-        logger.info(e)
+        logger.info(str(e))
     finally:
         soft_lock_toggle()
         event_hooks_to_run = (
