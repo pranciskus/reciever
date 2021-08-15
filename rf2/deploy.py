@@ -1,4 +1,4 @@
-from os.path import join, exists, basename, pathsep
+from os.path import join, exists, basename, pathsep, dirname
 from os import listdir, mkdir, getenv, unlink, stat
 from shutil import copy, rmtree, copytree, move
 from rf2.steam import run_steamcmd, install_mod
@@ -128,6 +128,7 @@ def deploy_server(
                 conditions,
                 track["component"]["name"],
                 track["layout"],
+                server_config["mod"]["sessions"],
             )
         except Exception as e:
             onStateChange("Create conditions failed", str(e), status_hooks)
@@ -340,7 +341,7 @@ def update_weather(root_path: str, sessions: list, mod_name, layout):
 
 
 def create_conditions(
-    root_path: str, grip, conditions, mod_name: str, layout: str
+    root_path: str, grip, conditions, mod_name: str, layout: str, sessions: list
 ) -> bool:
     server_root = join(root_path, "server")
     if conditions is None:
@@ -357,7 +358,8 @@ def create_conditions(
         weather_file_parent, properties["WET"].replace(".WET", "s.WET")
     )
     weather_template = properties["WET_SOURCE"]
-
+    extraction_path = dirname(properties["GDB_SOURCE"])
+    extraction_path_files = listdir(extraction_path)
     with open(weather_template, "r") as weather_file:
         content = weather_file.read()
         for key, value in grip.items():
@@ -368,6 +370,23 @@ def create_conditions(
             )
             grip_file_path = join(weather_file_parent, key + ".rrbin")
             value.save(grip_file_path)
+        for session in sessions:
+            type = session["type"]
+            grip_needle = session["grip_needle"]
+            if grip_needle:
+                for file in extraction_path_files:
+                    lower_file = file.lower()
+                    if ".rrbin" in lower_file and grip_needle in lower_file:
+                        logging.info(
+                            "Session {} will use preset grip file {}".format(type, file)
+                        )
+                        content = re.sub(
+                            r"RealRoad{}=\".+\"".format(type),
+                            'RealRoad{}="preset:{}"'.format(type, file),
+                            content,
+                        )
+            else:
+                logging.info("Session {} will not use preset grip files".format(type))
 
         with open(weather_file_path, "w") as weather_write_handle:
             weather_write_handle.write(content)
@@ -929,6 +948,16 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
                 subprocess.check_output(cmd_line_wet)
                 subprocess.check_output(cmd_line_grip)
                 files_collected = listdir(extraction_path)
+                grip_files = list(
+                    filter(lambda x: ".rrbin" in x.lower(), files_collected)
+                )
+                if len(grip_files) > 0:
+                    logging.info(
+                        "We managed to extract following grip files from the MAS file {}: {}".format(
+                            file,
+                            ",".join(grip_files),
+                        )
+                    )
                 if len(files_collected) == 0:
                     rmtree(extraction_path)
                 else:
