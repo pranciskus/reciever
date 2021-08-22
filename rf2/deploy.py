@@ -468,6 +468,16 @@ def build_mod(
             for entry in entries:
                 line = line + ' "' + entry + ',1"'
 
+        if server_config["mod"]["include_stock_skins"]:
+            base_version = version.replace(VERSION_SUFFIX, "")
+
+            logging.info(
+                f"The event demands to include stock skins from {name} {base_version}"
+            )
+            entries = get_entries_from_mod(root_path, name, base_version)
+            for entry in entries:
+                line = line + ' "' + entry + ',1"'
+
         veh_contents = veh_contents + line + "\n"
 
     # multiple tracks are not supported
