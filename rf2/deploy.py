@@ -350,6 +350,11 @@ def create_conditions(
         return True
 
     properties = find_location_properties(root_path, mod_name, layout)
+    if properties is None:
+        logging.warning(
+            "No properties could be extracted from the track. Make sure you are using a correct layout description for this component."
+        )
+
     condition_files_root_path = join(server_root, "UserData", "player", "Settings")
     weather_file_parent = join(condition_files_root_path, properties["SettingsFolder"])
     if not exists(weather_file_parent):
