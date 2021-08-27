@@ -12,43 +12,78 @@ from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
 from string import ascii_uppercase, digits
 from random import choice
 from psutil import process_iter
+import tarfile
 
 
-def oneclick_start_server(server_config: dict) -> bool:
+def oneclick_start_server(server_config: dict, files: dict) -> bool:
     root_path = server_config["server"]["root_path"]
-    server_root_path = join(server_config["server"]["root_path"], "server")
-    mod = server_config["mod"]["mod"]
-    server_binary_path = join(server_root_path, "Bin64", "rFactor2 Dedicated.exe")
-    server_binary_commandline = (
-        server_binary_path
-        + f' +path="{server_root_path}"'
-        + f"  +profile=player  +oneclick"
-    )
 
-    track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
-    name = track["component"]["name"]
-    layout = track["layout"]
-    logging.info(f"Using {name}:{layout} for startup")
+    try:
+        server_root_path = join(server_config["server"]["root_path"], "server")
+        mod = server_config["mod"]["mod"]
+        server_binary_path = join(server_root_path, "Bin64", "rFactor2 Dedicated.exe")
+        server_binary_commandline = (
+            server_binary_path
+            + f' +path="{server_root_path}"'
+            + f"  +profile=player  +oneclick"
+        )
 
-    session_id_path = join(root_path, "reciever", "session_id.txt")
+        track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
+        name = track["component"]["name"]
+        layout = track["layout"]
+        logging.info(f"Using {name}:{layout} for startup")
 
-    with open(session_id_path, "w") as file:
-        file.write("".join(choice(ascii_uppercase + digits) for _ in range(25)))
+        session_id_path = join(root_path, "reciever", "session_id.txt")
 
-    # make sure the Dedicated<modname>.ini has the correct content
-    mod_ini_path = join(
-        server_root_path, "UserData", "player", "Dedicated" + mod["name"] + ".ini"
-    )
+        with open(session_id_path, "w") as file:
+            file.write("".join(choice(ascii_uppercase + digits) for _ in range(25)))
 
-    max_clients_overwrite = get_max_players(server_config)
+        # make sure the Dedicated<modname>.ini has the correct content
+        mod_ini_path = join(
+            server_root_path, "UserData", "player", "Dedicated" + mod["name"] + ".ini"
+        )
 
-    if exists(mod_ini_path):
-        remove(mod_ini_path)
-    with open(mod_ini_path, "w") as file:
-        file.write("[SETTINGS]\n")
-        file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
-        file.write("[TRACKS]\n")
-    Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        max_clients_overwrite = get_max_players(server_config)
+
+        if exists(mod_ini_path):
+            remove(mod_ini_path)
+        with open(mod_ini_path, "w") as file:
+            file.write("[SETTINGS]\n")
+            file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
+            file.write("[TRACKS]\n")
+        Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+    except Exception as e:
+        from traceback import print_exc
+
+        print_exc()
+    # generate files for APX clients
+    output_filename = join(root_path, "modpack.tar.gz")
+    with tarfile.open(output_filename, "w:gz") as tar:
+        # add the manifest
+        manifest_name = join(
+            "Manifests",
+            files["mod"]["Name"]
+            + "_"
+            + files["mod"]["Version"].replace(".", "")
+            + ".mft",
+        )
+        manifest_path = join(root_path, "server", manifest_name)
+        tar.add(manifest_path, manifest_name)
+        # Add track files
+        for signature in files["signatures"]:
+            if "files" in signature:
+                signature_root_path = join(
+                    "Installed",
+                    "Vehicles" if int(signature["Type"]) == 2 else "Location",
+                    signature["Name"],
+                    signature["Version"],
+                )
+                full_signature_path = join(root_path, "server", signature_root_path)
+                for file in signature["files"]:
+                    tar.add(
+                        join(full_signature_path, file), join(signature_root_path, file)
+                    )
+
     return True
 
 

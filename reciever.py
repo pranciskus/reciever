@@ -152,7 +152,7 @@ def handle_error(e):
 @app.route("/oneclick_start_server", methods=["GET"])
 @check_api_key
 def start_oneclick():
-    got = oneclick_start_server(get_server_config())
+    got = oneclick_start_server(get_server_config(), signature_build())
     if not got:
         raise Exception("The server could not be started")
     return json_response({"is_ok": got}), 200
@@ -535,7 +535,6 @@ def get_public_mod_info():
     if got is None:
         return None
     del got["mod"]["server"]
-    del got["mod"]["mod"]["rfm"]
     del got["server"]
     del got["mod"]["callback_target"]
     del got["mod"]["conditions"]
@@ -543,9 +542,6 @@ def get_public_mod_info():
     return got
 
 
-@app.route(
-    "/files/<component>/<version>", methods=["GET"]
-)  # supports ONLY cars at the moment
 def get_files_of_update(component: str, version: str):
     config = get_server_config()
     mod = config["mod"]
@@ -556,15 +552,13 @@ def get_files_of_update(component: str, version: str):
     for _, car in cars.items():
         car_component = car["component"]["name"]
         car_version = car["component"]["version"]
-        car_update = car["component"]["update"]
-        if car_update:
-            if component == car_component and version == car_version:
-                path = join(
-                    root_path, "server", "Installed", "Vehicles", component, version
-                )
-                files = listdir(path)
-                return json_response(files)
-    abort(404)
+        if component == car_component and version == car_version:
+            path = join(
+                root_path, "server", "Installed", "Vehicles", component, version
+            )
+            files = listdir(path)
+            return files
+    return []
 
 
 @app.route(
@@ -603,8 +597,21 @@ def get_mod():
     return json_response(got)
 
 
-@app.route("/signatures", methods=["GET"])
-def get_signatures():
+@app.route("/download", methods=["GET"])
+def download_files():
+
+    webserver_config = read_webserver_config()
+    root_path = webserver_config["root_path"]
+
+    output_filename = join(root_path, "modpack.tar.gz")
+
+    return send_file(
+        output_filename, attachment_filename="modpack.tar.gz", as_attachment=True
+    )
+
+
+def signature_build():
+    raw_mod = get_public_mod_info()
     got = get_public_mod_info()
     if got is None:
         abort(404)
@@ -626,7 +633,6 @@ def get_signatures():
         lines = file.readlines()
         current_prop = {}
         for line in lines:
-            print(len(line))
             if len(line) == 1:
                 if current_prop != {}:
                     if mod is None:
@@ -641,7 +647,34 @@ def get_signatures():
                 value = got.group(2)
                 current_prop[key] = value
 
-    return json_response({"mod": mod, "signatures": signatures})
+    mod["suffix"] = VERSION_SUFFIX
+    car_haystack = raw_mod["mod"]["cars"]
+    track_haystack = raw_mod["mod"]["track"]
+    for index, props in enumerate(signatures):
+
+        name = props["Name"]
+        version = props["Version"]
+        origin_component = None
+        is_vehicle = int(props["Type"]) == 2
+        haystack = car_haystack if is_vehicle else track_haystack
+        props["source"] = None
+        for workshop_id, mod_props in haystack.items():
+            comp_name = mod_props["component"]["name"]
+            comp_version = mod_props["component"]["version"]
+            if name == comp_name and version == comp_version:
+                origin_component = mod_props
+                origin_component["steamid"] = workshop_id
+                props["source"] = workshop_id
+
+                if VERSION_SUFFIX in comp_version:
+                    props["files"] = get_files_of_update(comp_name, comp_version)
+
+    return {"mod": mod, "signatures": signatures}
+
+
+@app.route("/signatures", methods=["GET"])
+def get_signatures():
+    return json_response(signature_build())
 
 
 @app.after_request
