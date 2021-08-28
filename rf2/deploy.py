@@ -390,6 +390,24 @@ def create_conditions(
                             'RealRoad{}="preset:{}"'.format(type, file),
                             content,
                         )
+                    try:
+                        if re.match(grip_needle, lower_file):
+                            content = re.sub(
+                                r"RealRoad{}=\".+\"".format(type),
+                                'RealRoad{}="preset:{}"'.format(type, file),
+                                content,
+                            )
+                            logging.info(
+                                "Session {} will use preset grip file {}, matched by regex {}".format(
+                                    type, file, grip_needle
+                                )
+                            )
+                    except:
+                        logging.warning(
+                            "Applying an regex for {} did not result in success".format(
+                                grip_needle
+                            )
+                        )
             else:
                 logging.info("Session {} will not use preset grip files".format(type))
 
