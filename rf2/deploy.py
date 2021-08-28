@@ -402,7 +402,7 @@ def get_latest_version(root_path: str, latest=True) -> str:
     versions = listdir(root_path)
     if len(versions) == 1:
         logging.info(
-            "We don't need to sort here as only one version ({}) is available. Falling back.".format(
+            "We don't need to sort here as only one version ({}) for {} is available. Falling back.".format(
                 versions[0], root_path
             )
         )
