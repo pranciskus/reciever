@@ -69,6 +69,19 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
         )
         manifest_path = join(root_path, "server", manifest_name)
         tar.add(manifest_path, manifest_name)
+
+        # add the rfm mas path
+        rfm_name = join(
+            "Installed",
+            "rFm",
+            files["mod"]["Name"]
+            + "_"
+            + files["mod"]["Version"].replace(".", "")
+            + ".mas",
+        )
+        rfm_path = join(root_path, "server", rfm_name)
+        tar.add(rfm_path, rfm_name)
+
         # Add track files
         for signature in files["signatures"]:
             if "files" in signature:
