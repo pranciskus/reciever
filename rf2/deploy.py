@@ -866,6 +866,8 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
     file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
         "TrackName": r"TrackName\s+=\s+([^\n]+)",
+        "EventName": r"EventName\s+=\s+([^\n]+)",
+        "VenueName": r"VenueName\s+=\s+([^\n]+)",
         "SettingsFolder": r"SettingsFolder\s+=\s+([^\n]+)",
     }
     property_map = {}
@@ -901,10 +903,12 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
             property_map[key]["WET_SOURCE"] = join(key, wet_matches[0])
 
     for key, properties in property_map.items():
-        if properties["TrackName"] == desired_layout:
-            logging.info(
-                "Using data {} for weather injection.".format(properties["TrackName"])
-            )
+        if (
+            properties["TrackName"] == desired_layout
+            or properties["EventName"] == desired_layout
+            or properties["VenueName"] == desired_layout
+        ):
+            logging.info("Using data {} for weather injection.".format(desired_layout))
             # if there is no weather file -> create
             if "WET" not in properties:
                 # create wet source
