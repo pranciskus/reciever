@@ -63,6 +63,12 @@ def deploy_server(
     restore_vanilla(server_config)
     # build vehicle mods
     for workshop_id, vehicle in vehicles.items():
+        if ":" in workshop_id:  # the workshop_id is prefixed
+            raw_id = workshop_id
+            workshop_id = workshop_id.split(":")[0]
+            logging.info(
+                f"The provided workshop id {raw_id} is suffixed. Removed suffix. Using {workshop_id} as the ID"
+            )
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
