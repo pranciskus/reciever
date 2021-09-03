@@ -414,6 +414,8 @@ def create_conditions(
                 logging.info(
                     f"Attempting to find a grip file for session {type} by needle {grip_needle}"
                 )
+                found_gripfile = False
+                found_gripfile_name = None
                 for file in extraction_path_files:
                     lower_file = file.lower()
                     if ".rrbin" in lower_file and grip_needle in lower_file:
@@ -425,6 +427,8 @@ def create_conditions(
                             'RealRoad{}="preset:{}"'.format(type, file),
                             content,
                         )
+                        found_gripfile = True
+                        found_gripfile_name = file
                     try:
                         if re.match(grip_needle, lower_file):
                             content = re.sub(
@@ -437,12 +441,31 @@ def create_conditions(
                                     type, file, grip_needle
                                 )
                             )
+                            found_gripfile = True
+                            found_gripfile_name = file
                     except:
                         logging.warning(
                             "Applying an regex for {} did not result in success".format(
                                 grip_needle
                             )
                         )
+                if found_gripfile and "autosave" in grip_needle.lower():
+                    autosave_path = join(weather_file_parent, "AutoSave.rrbin")
+                    if not exists(autosave_path) and found_gripfile_name:
+                        logging.info(
+                            "Session {} will use a preset grip file {} which will be used as future auto save file.".format(
+                                type, found_gripfile_name
+                            )
+                        )
+                        source_path = join(extraction_path, found_gripfile_name)
+                        copy(source_path, autosave_path)
+                        logging.info(f"Copied {source_path} to {autosave_path}")
+                    content = re.sub(
+                        r"RealRoad{}=\".+\"".format(type),
+                        'RealRoad{}="user:AutoSave.rrbin"'.format(type),
+                        content,
+                    )
+
             else:
                 logging.info("Session {} will not use preset grip files".format(type))
 
