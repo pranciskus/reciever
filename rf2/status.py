@@ -3,7 +3,7 @@ from os.path import join, isfile, exists
 from time import time
 from requests import get
 from requests.exceptions import RequestException
-from json import load
+from json import load, JSONDecodeError
 from rf2.util import get_server_port, get_public_http_server_port
 import logging
 from os import listdir
@@ -108,7 +108,12 @@ def get_server_status(server_config: dict) -> dict:
             pass
     except RequestException:
         result = None  # do nothing, if the server is not running
+    except JSONDecodeError:
+        result = None  # do nothing, if the server is not running
     except Exception as e:
+        import traceback
+
+        print(traceback.print_exc())
         logging.error(e)
         result = None
 
