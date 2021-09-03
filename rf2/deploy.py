@@ -395,7 +395,22 @@ def create_conditions(
         for session in sessions:
             type = session["type"]
             grip_needle = session["grip_needle"]
-            if grip_needle:
+            if grip_needle and grip_needle.lower() == "autosave":
+                autosave_path = join(weather_file_parent, "AutoSave.rrbin")
+                if exists(autosave_path):
+                    logging.info(
+                        f"The grip needle for {type} demands an autosave. The file exists and will be used."
+                    )
+                    content = re.sub(
+                        r"RealRoad{}=\".+\"".format(type),
+                        'RealRoad{}="user:AutoSave.rrbin"'.format(type),
+                        content,
+                    )
+                else:
+                    logging.info(
+                        f"There is no autosave file found for {type} at the moment. Start the server once to make it available and deploy again."
+                    )
+            if grip_needle and grip_needle.lower() != "autosave":
                 logging.info(
                     f"Attempting to find a grip file for session {type} by needle {grip_needle}"
                 )
@@ -773,8 +788,18 @@ def restore_vanilla(server_config: dict) -> bool:
         join(server_root_path, "Packages"): ["Skins"],
         join(server_root_path, "appcache"): [],
         join(server_root_path, "steamapps"): [],
-        join(user_data_path, "player", "Settings"): [],
     }
+
+    if (
+        "remove_settings" in server_config["mod"]
+        and server_config["mod"]["remove_settings"] == True
+    ):
+        folder_paths[join(user_data_path, "player", "Settings")] = []
+        logging.info(
+            "User choosed to remove settings folders. Will be included in deletion"
+        )
+    else:
+        logging.info("User choosed to persist settings. Will not be changed.")
 
     if (
         "remove_cbash_shaders" in server_config["mod"]
@@ -782,7 +807,7 @@ def restore_vanilla(server_config: dict) -> bool:
     ):
         folder_paths[join(user_data_path, "Log")] = ["CBash", "Results", "Shaders"]
         logging.info(
-            "User choosed to remove CBash and folders. Will be included in deletion"
+            "User choosed to remove CBash and shader folders. Will be included in deletion"
         )
     else:
         logging.info("User choosed to persist CBash and folders. Will not be changed.")
