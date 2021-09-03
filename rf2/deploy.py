@@ -460,6 +460,12 @@ def create_conditions(
                         source_path = join(extraction_path, found_gripfile_name)
                         copy(source_path, autosave_path)
                         logging.info(f"Copied {source_path} to {autosave_path}")
+                    else:
+                        logging.info(
+                            "Session {} want's a preset become a auto save file, but the file is already existing. Doing nothing.".format(
+                                type, found_gripfile_name
+                            )
+                        )
                     content = re.sub(
                         r"RealRoad{}=\".+\"".format(type),
                         'RealRoad{}="user:AutoSave.rrbin"'.format(type),
