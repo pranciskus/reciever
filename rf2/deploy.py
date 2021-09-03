@@ -1054,7 +1054,7 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
         mod_version_path = join(mod_root_path, version)
         files = listdir(mod_version_path)
         for file in files:
-            if ".mas" in file:
+            if ".mas" in file.lower():
                 full_mas_path = join(mod_version_path, file)
                 extraction_path = join(root_path, "build", file + "_extraction")
                 if exists(extraction_path):
