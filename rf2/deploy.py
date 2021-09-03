@@ -230,6 +230,10 @@ def deploy_server(
                 player_json["Race Conditions"][
                     "Practice1StartingTime"
                 ] = time_after_midnight
+            player_json["Race Conditions"]["RealRoadTimeScalePractice"] = session[
+                "grip_scale"
+            ]
+
             multiplayer_json["Multiplayer Server Options"]["Practice 1 Time"] = length
 
         if type == "Q1":
@@ -237,6 +241,9 @@ def deploy_server(
                 player_json["Race Conditions"][
                     "QualifyingStartingTime"
                 ] = time_after_midnight
+            player_json["Race Conditions"]["RealRoadTimeScaleQualifying"] = session[
+                "grip_scale"
+            ]
             if laps == 0:
                 multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = 255
 
@@ -257,6 +264,9 @@ def deploy_server(
                 player_json["Race Conditions"][
                     "MULTI RaceStartingTime"
                 ] = time_after_midnight
+            player_json["Race Conditions"]["RealRoadTimeScaleRace"] = session[
+                "grip_scale"
+            ]
             # Insert starting type, if a race session is present
             player_json["Race Conditions"]["MULTI Formation Lap"] = event_config[
                 "start_type"
@@ -369,6 +379,7 @@ def create_conditions(
         weather_file_parent, properties["WET"].replace(".WET", "s.WET")
     )
     weather_template = properties["WET_SOURCE"]
+    logging.info(f"The file {weather_template} is used as a template.")
     extraction_path = dirname(properties["GDB_SOURCE"])
     extraction_path_files = listdir(extraction_path)
     with open(weather_template, "r") as weather_file:
@@ -385,6 +396,9 @@ def create_conditions(
             type = session["type"]
             grip_needle = session["grip_needle"]
             if grip_needle:
+                logging.info(
+                    f"Attempting to find a grip file for session {type} by needle {grip_needle}"
+                )
                 for file in extraction_path_files:
                     lower_file = file.lower()
                     if ".rrbin" in lower_file and grip_needle in lower_file:
@@ -417,6 +431,7 @@ def create_conditions(
             else:
                 logging.info("Session {} will not use preset grip files".format(type))
 
+        logging.info(f"Writing grip additions into file {weather_file_path}")
         with open(weather_file_path, "w") as weather_write_handle:
             weather_write_handle.write(content)
     return True
@@ -754,12 +769,23 @@ def restore_vanilla(server_config: dict) -> bool:
 
     folder_paths = {
         join(user_data_path, "Replays"): [],
-        join(user_data_path, "Log"): ["CBash", "Results", "Shaders"],
+        join(user_data_path, "Log"): ["Results"],
         join(server_root_path, "Packages"): ["Skins"],
         join(server_root_path, "appcache"): [],
         join(server_root_path, "steamapps"): [],
         join(user_data_path, "player", "Settings"): [],
     }
+
+    if (
+        "remove_cbash_shaders" in server_config["mod"]
+        and server_config["mod"]["remove_cbash_shaders"] == True
+    ):
+        folder_paths[join(user_data_path, "Log")] = ["CBash", "Results", "Shaders"]
+        logging.info(
+            "User choosed to remove CBash and folders. Will be included in deletion"
+        )
+    else:
+        logging.info("User choosed to persist CBash and folders. Will not be changed.")
 
     collect_results_replays = (
         server_config["mod"]["collect_results_replays"]
@@ -900,6 +926,7 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         gdb_matches = list(filter(lambda x: ".gdb" in x.lower(), files))
         wet_matches = list(filter(lambda x: ".wet" in x.lower(), files))
         if len(gdb_matches) != 1:
+            logging.error("We found {} files for {}".format(len(gdb_matches), key))
             raise Exception("No suitable GDB file found")
 
         gdb_file = join(key, gdb_matches[0])
@@ -976,6 +1003,8 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
             if ".mas" in file:
                 full_mas_path = join(mod_version_path, file)
                 extraction_path = join(root_path, "build", file + "_extraction")
+                if exists(extraction_path):
+                    rmtree(extraction_path)
                 if not exists(extraction_path):
                     mkdir(extraction_path)
                 cmd_line_gdb = '{} -x{} "*.gdb" -o{}'.format(
