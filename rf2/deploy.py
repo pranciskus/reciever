@@ -384,6 +384,7 @@ def create_conditions(
     logging.info(f"The file {weather_template} is used as a template.")
     extraction_path = dirname(properties["GDB_SOURCE"])
     extraction_path_files = listdir(extraction_path)
+    extraction_path_files.sort()
     with open(weather_template, "r") as weather_file:
         content = weather_file.read()
         for key, value in grip.items():
@@ -1035,6 +1036,17 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
             or properties["VenueName"] == desired_layout
         ):
             logging.info("Using data {} for weather injection.".format(desired_layout))
+            # write a marker to remember the GDB name
+            # ASSUMPTION = GDB FILENAME IN UPPERCASE == CALLVOTE NAME
+            gdb_name_path = join(root_path, "reciever", "gdbname.txt")
+            gdb_name = basename(properties["GDB_SOURCE"]).upper().replace(".GDB", "")
+            logging.info(
+                "Writing marker {} with content {} to remember GDB name".format(
+                    gdb_name_path, gdb_name
+                )
+            )
+            with open(gdb_name_path, "w") as file:
+                file.write(gdb_name)
             # if there is no weather file -> create
             if "WET" not in properties:
                 # create wet source
@@ -1098,6 +1110,7 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
                 grip_files = list(
                     filter(lambda x: ".rrbin" in x.lower(), files_collected)
                 )
+                grip_files.sort()
                 if len(grip_files) > 0:
                     logging.info(
                         "We managed to extract following grip files from the MAS file {}: {}".format(
