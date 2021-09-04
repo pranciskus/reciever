@@ -372,6 +372,8 @@ def create_conditions(
         )
 
     condition_files_root_path = join(server_root, "UserData", "player", "Settings")
+    if not exists(condition_files_root_path):
+        mkdir(condition_files_root_path)
     weather_file_parent = join(condition_files_root_path, properties["SettingsFolder"])
     if not exists(weather_file_parent):
         mkdir(weather_file_parent)
