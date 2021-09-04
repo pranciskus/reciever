@@ -59,6 +59,58 @@ def deploy_server(
     root_path = server_config["server"]["root_path"]
 
     event_config = server_config["mod"]
+
+    # removal of unused steam mods
+    if (
+        "remove_unused_mods" in server_config["mod"]
+        and server_config["mod"]["remove_unused_mods"]
+    ):
+        all_steam_ids = []
+        for workshop_id, _ in vehicles.items():
+            id = workshop_id
+            if ":" in workshop_id:  # the workshop_id is prefixed
+                raw_id = workshop_id
+                id = workshop_id.split(":")[0]
+
+            if id not in all_steam_ids and "-" not in str(id):
+                all_steam_ids.append(id)
+        for workshop_id, _ in tracks.items():
+            id = workshop_id
+            if ":" in workshop_id:  # the workshop_id is prefixed
+                raw_id = workshop_id
+                id = workshop_id.split(":")[0]
+
+            if id not in all_steam_ids and "-" not in str(id):
+                all_steam_ids.append(id)
+
+        logging.info(
+            "We seen {} different steam id's in this deployment.".format(
+                len(all_steam_ids)
+            )
+        )
+        steam_root_path = join(
+            root_path, "steamcmd", "steamapps", "workshop", "content", "365960"
+        )
+        all_steam_downloads = listdir(steam_root_path)
+        logging.info(
+            "There are currently {} steam workshop items downloaded".format(
+                len(all_steam_downloads)
+            )
+        )
+        for steam_id in all_steam_downloads:
+            full_item_path = join(steam_root_path, steam_id)
+            if steam_id not in all_steam_ids:
+                logging.info(
+                    f"We will remove the path {full_item_path} to save storage."
+                )
+                rmtree(full_item_path)
+                logging.info(f"Removed {full_item_path} to save storage.")
+            else:
+                logging.info(
+                    f"We will NOT remove the path {full_item_path} as it's part of this deployment"
+                )
+    else:
+        logging.info("We will not attempt to cleanup steamcmd downloads.")
     onStateChange("Restoring vanilla state and doing Steam update", None, status_hooks)
     restore_vanilla(server_config)
     # build vehicle mods
