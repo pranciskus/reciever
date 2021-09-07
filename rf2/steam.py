@@ -1,5 +1,5 @@
 import subprocess
-from os.path import join, exists
+from os.path import join, exists, dirname
 from os import listdir, unlink
 from shutil import copy
 import tempfile
