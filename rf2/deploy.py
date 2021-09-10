@@ -662,7 +662,7 @@ def build_mod(
         "mod_version": mod_info["version"],
         "trackmod_name": track_components["name"],
         "trackmod_version": "v" + track_components["version"],
-        "layouts": '"' + track["layout"] + ',1"',
+        "layouts": '"' + track["layout"].replace('"', '\\"') + ',1"',
         "location": join(root_path, "server", "Packages", mod_info["name"] + ".rfmod"),
         "veh_mods_count": str(len(vehicles)),
         "veh_mod_contents": veh_contents,
@@ -1043,10 +1043,10 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         raise Exception("The default weather template is missing")
     file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
-        "TrackName": r"TrackName\s+=\s+([^\n]+)",
-        "EventName": r"EventName\s+=\s+([^\n]+)",
-        "VenueName": r"VenueName\s+=\s+([^\n]+)",
-        "SettingsFolder": r"SettingsFolder\s+=\s+([^\n]+)",
+        "TrackName": r"TrackName\s+=\s+([^\n^\/]+)",
+        "EventName": r"EventName\s+=\s+([^\n^\/]+)",
+        "VenueName": r"VenueName\s+=\s+([^\n^\/]+)",
+        "SettingsFolder": r"SettingsFolder\s+=\s+\s+([^\n^\/]+)",
     }
     property_map = {}
     for key, files in file_map.items():
@@ -1065,10 +1065,10 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
             for property, pattern in needles.items():
                 matches = re.findall(pattern, content, re.MULTILINE)
                 if matches is not None and len(matches) == 1:
-                    property_map[key][property] = matches[0]
+                    property_map[key][property] = matches[0].strip()
                     logging.info(
                         'Based on file situation, we identified "{}" as a property for {}.'.format(
-                            matches[0], property
+                            property_map[key][property], property
                         )
                     )
 
@@ -1082,11 +1082,11 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
             property_map[key]["WET_SOURCE"] = join(key, wet_matches[0])
 
     for key, properties in property_map.items():
-        if (
-            properties["TrackName"] == desired_layout
-            or properties["EventName"] == desired_layout
-            or properties["VenueName"] == desired_layout
-        ):
+        haystack = []
+        for needle in ["TrackName", "EventName", "Venuename"]:
+            if needle in properties:
+                haystack.append(properties[needle])
+        if desired_layout in haystack:
             logging.info("Using data {} for weather injection.".format(desired_layout))
             # write a marker to remember the GDB name
             # ASSUMPTION = GDB FILENAME IN UPPERCASE == CALLVOTE NAME
