@@ -470,7 +470,7 @@ def install_plugins():
         base_name = basename(file)
         got = iostream.save(join(server_bin_path, base_name))
         info(
-            "Plugin file for {} injected into ".format(
+            "Plugin file for {} injected into {}".format(
                 base_name, join(server_bin_path, base_name)
             )
         )
