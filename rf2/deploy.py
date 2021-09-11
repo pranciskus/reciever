@@ -245,6 +245,20 @@ def deploy_server(
     with open(multiplayer_json_path, "r") as file:
         multiplayer_json = load(file)
 
+    if (
+        "skip_all_session_unless_configured" in event_config
+        and event_config["skip_all_session_unless_configured"]
+    ):
+        logging.info(
+            "Event has option set to skip all sessions unless the ones configured."
+        )
+        player_json["Race Conditions"]["Run Warmup"] = False
+        for i in range(1, 5):
+            player_json["Race Conditions"]["Run Practice{}".format(i)] = False
+        for area in ["CHAMP", "CURNT", "GPRIX", "MULTI", "RPLAY"]:
+            player_json["Race Conditions"][f"{area} Num Qual Sessions"] = 0
+            player_json["Race Conditions"][f"{area} Num Race Sessions"] = 0
+
     for session in event_config["sessions"]:
         type = session["type"]
         length = session["length"]
@@ -285,7 +299,7 @@ def deploy_server(
             player_json["Race Conditions"]["RealRoadTimeScalePractice"] = session[
                 "grip_scale"
             ]
-
+            player_json["Race Conditions"]["Run Practice1"] = True
             multiplayer_json["Multiplayer Server Options"]["Practice 1 Time"] = length
 
         if type == "Q1":
@@ -296,6 +310,8 @@ def deploy_server(
             player_json["Race Conditions"]["RealRoadTimeScaleQualifying"] = session[
                 "grip_scale"
             ]
+            for area in ["CHAMP", "CURNT", "GPRIX", "MULTI", "RPLAY"]:
+                player_json["Race Conditions"][f"{area} Num Qual Sessions"] = 1
             if laps == 0:
                 multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = 255
 
@@ -319,6 +335,9 @@ def deploy_server(
             player_json["Race Conditions"]["RealRoadTimeScaleRace"] = session[
                 "grip_scale"
             ]
+
+            for area in ["CHAMP", "CURNT", "GPRIX", "MULTI", "RPLAY"]:
+                player_json["Race Conditions"][f"{area} Num Race Sessions"] = 1
             # Insert starting type, if a race session is present
             player_json["Race Conditions"]["MULTI Formation Lap"] = event_config[
                 "start_type"
@@ -1046,7 +1065,7 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         "TrackName": r"TrackName\s+=\s+([^\n^\/]+)",
         "EventName": r"EventName\s+=\s+([^\n^\/]+)",
         "VenueName": r"VenueName\s+=\s+([^\n^\/]+)",
-        "SettingsFolder": r"SettingsFolder\s+=\s+\s+([^\n^\/]+)",
+        "SettingsFolder": r"SettingsFolder\s+=\s+([^\n^\/]+)",
     }
     property_map = {}
     for key, files in file_map.items():
