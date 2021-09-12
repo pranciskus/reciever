@@ -314,8 +314,8 @@ def deploy_server(
                 player_json["Race Conditions"][f"{area} Num Qual Sessions"] = 1
             if laps == 0:
                 multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = 255
-
-            multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = laps
+            else:
+                multiplayer_json["Multiplayer Server Options"]["Qualifying Laps"] = laps
             multiplayer_json["Multiplayer Server Options"]["Qualifying Time"] = length
 
         if type == "WU":
