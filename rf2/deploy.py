@@ -349,6 +349,18 @@ def deploy_server(
                 player_json["Game Options"]["MULTI Race Finish Criteria"] = 2
                 player_json["Game Options"]["MULTI Race Time"] = length
 
+    if (
+        "race_finish_criteria" in event_config
+        and event_config["race_finish_criteria"] is not None
+    ):
+        for area in ["CHAMP", "CURNT", "GPRIX", "MULTI", "RPLAY"]:
+            player_json["Game Options"][f"{area} Race Finish Criteria"] = event_config[
+                "race_finish_criteria"
+            ]
+        logging.info(
+            "We will use a user defined race finish criteria: "
+            + str(event_config["race_finish_criteria"])
+        )
     onStateChange("Updating player.json", None, status_hooks)
     with open(player_json_path, "w") as file:
         logging.info("Updating player.json to represent session dimensions")
