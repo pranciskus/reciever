@@ -16,7 +16,7 @@ def install_server(server_config: dict) -> bool:
         # the server runs in a managed environment
         # get new root path, basically do a doubled "cd .."
         new_root_path = dirname(dirname(root_path))
-        if exists(new_root_path, "steamcmd", "steamcmd.exe"):
+        if exists(join(new_root_path, "steamcmd", "steamcmd.exe")):
             steam_root = join(new_root_path, "steamcmd")
             logging.info(
                 "We will skip the download of the steamcmd command set as there is a global steamcmd apparently."
