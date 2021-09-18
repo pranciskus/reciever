@@ -15,7 +15,7 @@ def install_server(server_config: dict) -> bool:
     if "server_children" in root_path:
         # the server runs in a managed environment
         # get new root path, basically do a doubled "cd .."
-        new_root_path = dirname(dirname(root_path))
+        new_root_path = dirname(dirname(dirname(root_path)))
         if exists(join(new_root_path, "steamcmd", "steamcmd.exe")):
             steam_root = join(new_root_path, "steamcmd")
             logging.info(
