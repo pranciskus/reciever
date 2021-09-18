@@ -18,9 +18,11 @@ def install_server(server_config: dict) -> bool:
         new_root_path = dirname(dirname(root_path))
         if exists(new_root_path, "steamcmd", "steamcmd.exe"):
             steam_root = join(new_root_path, "steamcmd")
-            logging.info("We will skip the download of the steamcmd command set as there is a global steamcmd apparently.")
+            logging.info(
+                "We will skip the download of the steamcmd command set as there is a global steamcmd apparently."
+            )
             logging.info(f"Injecting {steam_root} as global steam path root")
-            server_config[["mod"]["global_steam_path"] = steam_root
+            server_config["mod"]["global_steam_path"] = steam_root
             install_steam = False
 
     if install_steam:
