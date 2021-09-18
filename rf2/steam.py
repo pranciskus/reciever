@@ -20,6 +20,18 @@ The reciever can probably work without copying steam workshop items into package
 DONT_COPY_INTO_PACKAGES = True
 
 
+def get_steamcmd_path(server_config):
+    root_path = server_config["server"]["root_path"]
+    global_steam_path = join(root_path, "steamcmd")
+    if "global_steam_path" in server_config["mod"]:
+        global_steam_path = server_config["mod"]["global_steam_path"]
+        logging.info(
+            f"The server runs in a wizard instance with a global steam instance. We will use {global_steam_path} as the root for steamcmd."
+        )
+
+    return global_steam_path
+
+
 def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     """
     Runs the given steam cmd from STEAMCMDCOMMANDS
@@ -27,7 +39,8 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     """
     logging.info("Triggering steam command: {}, args: {}".format(command, arg))
     root_path = server_config["server"]["root_path"]
-    steam_path = join(root_path, "steamcmd", "steamcmd.exe")
+    global_steam_path = get_steamcmd_path(server_config)
+    steam_path = join(global_steam_path, "steamcmd.exe")
     server_path = join(root_path, "server")
 
     if command == "install" or command == "update":
@@ -75,10 +88,8 @@ def get_mod_files_from_steam(server_config: dict, id: str) -> list:
     """
     Lists all rfcmp files from a workshop package (must be downloaded)
     """
-    root_path = server_config["server"]["root_path"]
-    source_path = join(
-        root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", id
-    )
+    root_path = get_steamcmd_path(server_config)
+    source_path = join(root_path, "steamapps\\workshop\\content\\365960\\", id)
     return get_mod_files_from_folder(source_path)
 
 
@@ -146,8 +157,9 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
     root_path = server_config["server"]["root_path"]
     source_path = None
     if id > 0:
+        steam_root = get_steamcmd_path(server_config)
         source_path = join(
-            root_path, "steamcmd\\steamapps\\workshop\\content\\365960\\", str(id)
+            steam_root, "steamapps\\workshop\\content\\365960\\", str(id)
         )
     else:
         if "server_children" in root_path:
