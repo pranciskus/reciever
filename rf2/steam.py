@@ -209,7 +209,9 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
         logging.info(
             "Running modmgr command {}".format(mod_mgr_cmdline + " -q -i" + rf_mod)
         )
-        install = subprocess.getstatusoutput(mod_mgr_cmdline + " -q -i" + rf_mod)
+        install = subprocess.getstatusoutput(
+            mod_mgr_cmdline + ' -q -i"' + rf_mod + "\n"
+        )
         if install[0] != 0:
             logging.warning(f"ModMgr returned {install[0]} as a returncode.")
         install_results.append(install[0] == 0)

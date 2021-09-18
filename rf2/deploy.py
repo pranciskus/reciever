@@ -1177,13 +1177,13 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
                     rmtree(extraction_path)
                 if not exists(extraction_path):
                     mkdir(extraction_path)
-                cmd_line_gdb = '{} -x{} "*.gdb" -o{}'.format(
+                cmd_line_gdb = '{} -x"{}" "*.gdb" -o{}'.format(
                     modmgr_path, full_mas_path, extraction_path
                 )
-                cmd_line_wet = '{} -x{} "*.wet" -o{}'.format(
+                cmd_line_wet = '{} -x"{}" "*.wet" -o{}'.format(
                     modmgr_path, full_mas_path, extraction_path
                 )
-                cmd_line_grip = '{} -x{} "*.rrbin" -o{}'.format(
+                cmd_line_grip = '{} -x"{}" "*.rrbin" -o{}'.format(
                     modmgr_path, full_mas_path, extraction_path
                 )
                 subprocess.check_output(cmd_line_gdb)
