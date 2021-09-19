@@ -261,28 +261,29 @@ def deploy_server(
 
         install_mod(server_config, int(workshop_id), component_info["name"])
         onStateChange("Installing vehicle", component_info["name"], status_hooks)
-        version = get_latest_version(
-            join(root_path, "server", "Installed", "Vehicles", component_info["name"]),
-            component_info["version"] == "latest",
-        )
-        files = extract_veh_files(root_path, component_info["name"], version)
-        build_path = join(root_path, "build")
-        component_path = join(build_path, component_info["name"])
-        files_in_component_path = listdir(component_path)
-        if (
-            len(list(filter(lambda x: x.endswith(".veh"), files_in_component_path)))
-            == 0
-        ):
-            logging.info(
-                f"We did not see a single VEH file inside of {component_path}. We will generate them now."
-            )
-            generate_veh_templates(component_path, files, vehicle)
-        else:
-            logging.info(
-                f"Skipping generation of additional VEh files as there are veh files inside of {component_path}."
-            )
 
         if component_info["update"]:
+            
+            version = get_latest_version(
+                join(root_path, "server", "Installed", "Vehicles", component_info["name"]),
+                component_info["version"] == "latest",
+            )
+            files = extract_veh_files(root_path, component_info["name"], version)
+            build_path = join(root_path, "build")
+            component_path = join(build_path, component_info["name"])
+            files_in_component_path = listdir(component_path)
+            if (
+                len(list(filter(lambda x: x.endswith(".veh"), files_in_component_path)))
+                == 0
+            ):
+                logging.info(
+                    f"We did not see a single VEH file inside of {component_path}. We will generate them now."
+                )
+                generate_veh_templates(component_path, files, vehicle)
+            else:
+                logging.info(
+                    f"Skipping generation of additional VEh files as there are veh files inside of {component_path}."
+                )
             create_mas(server_config, component_info, True)
             build_cmp_mod(server_config, component_info, "Vehicles", True)
             onStateChange(
