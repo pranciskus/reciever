@@ -102,7 +102,7 @@ def get_mod_files_from_folder(source_path: str) -> list:
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
 
 
-def get_entries_from_mod(root_path, component_name: str, version: str):
+def extract_veh_files(root_path, component_name: str, version: str):
     temp_path = tempfile.mkdtemp()
     comp_path = join(
         root_path, "server", "Installed", "Vehicles", component_name, version
@@ -129,6 +129,15 @@ def get_entries_from_mod(root_path, component_name: str, version: str):
                 "We did not manage to extract any vehicle definitions. Check the used version."
             )
     veh_files = listdir(temp_path)
+
+    results = []
+    for veh_file in veh_files:
+        results.append(join(temp_path, veh_file))
+    return results
+
+
+def get_entries_from_mod(root_path, component_name: str, version: str):
+    veh_files = extract_veh_files(root_path, component_name, version)
     logging.info(
         "Found {} files as vehicle definition in {}".format(len(veh_files), temp_path)
     )
@@ -142,7 +151,7 @@ def get_entries_from_mod(root_path, component_name: str, version: str):
     pattern = r"Description\s{0,}=\s{0,}\"(.+)\""
     entries = []
     for file in veh_files:
-        full_veh_path = join(temp_path, file)
+        full_veh_path = join(file)
         with open(full_veh_path, "r") as veh_handle:
             content = veh_handle.readlines()
             for line in content:

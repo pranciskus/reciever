@@ -8,11 +8,133 @@ from json import loads, dumps, load, dump
 import re
 from distutils.version import LooseVersion
 import logging
-from rf2.steam import get_entries_from_mod
+from rf2.steam import get_entries_from_mod, extract_veh_files
 from rf2.util import get_server_port
 from datetime import datetime
 
 VERSION_SUFFIX = ".9apx"
+
+
+def generate_veh_templates(target_path: str, veh_templates: list, component_info: dict):
+    if len(veh_templates) == 0:
+        logging.exception(
+            f"There is no suitable VEH file to use inside of {veh_templates}"
+        )
+        raise Exception(
+            f"There is no suitable VEH file to use inside of {veh_templates}"
+        )
+
+    short_name = component_info["component"]["short"]
+    entries = component_info["entries"]
+    for entry in entries:
+
+        parts = entry.split("#")
+        name = parts[0]
+        number_parts = parts[1].split(":")
+        number = number_parts[0]
+        pit_group = number_parts[1]
+        # check if overwrites might be there
+        overwrites = (
+            component_info["entries_overwrites"][number]
+            if number in component_info["entries_overwrites"]
+            else None
+        )
+
+        veh_template = veh_templates[0]  # later with filter
+        if overwrites and "BaseClass" in overwrites:
+            base_class = overwrites["BaseClass"]
+            # search for a suitable base VEH file
+            matched = False
+            for template in veh_templates:
+                if matched:
+                    break
+                with open(template, "r") as template_handle:
+                    content = template_handle.readlines()
+                    for line in content:
+                        if (
+                            "classes" in line.lower()
+                            and overwrites["BaseClass"].lower() in line.lower()
+                        ):
+                            line_log = line.replace("\n", "")
+                            logging.info(
+                                f'We will choose the VEH file as a template: {template} as it suits the BaseClass string "{base_class}": {line_log}'
+                            )
+                            matched = True
+                            veh_template = template
+                            break
+
+        else:
+            logging.info(
+                f"We will choose the first VEH file as a template: {veh_template}"
+            )
+        with open(veh_template, "r") as veh_template_handle:
+            content = veh_template_handle.read()
+            logging.info(f"Creating VEH file for {entry}")
+            # ER_AlpineSeries_rF2#52:1
+
+            description = f"{name}#{number}"
+            replacementMap = {
+                "DefaultLivery": short_name + f"_{number}.dds",
+                "Number": f"{number}",
+                "Team": f"{name}",
+                "Description": f"{description}",
+                "FullTeamName": f"{description}",
+                "PitGroup": f"Group{pit_group}",
+            }
+            templateLines = content.split("\n")
+            newLines = []
+            for line in templateLines:
+                hadReplacement = False
+                for key, value in replacementMap.items():
+                    pattern = r"(" + key + '\s{0,}=\s{0,}"?([^"^\n^\r]+)"?)'
+                    matches = re.match(pattern, line, re.MULTILINE)
+                    replacement = "{}={}\n".format(key, value)
+                    if matches:
+                        fullMatch = matches.groups(0)[0]
+                        if '"' in fullMatch:
+                            replacement = '{}="{}"\n'.format(key, value)
+
+                        newLines.append(replacement)
+                        hadReplacement = True
+                if not hadReplacement:
+                    newLines.append(line)
+            # write the new VEH file
+            if len(newLines) > 0:
+                result = "\n".join(newLines)
+                if overwrites:
+                    print(
+                        "Found overwrites for VEH template for entry {}".format(number)
+                    )
+                    template_lines = result.split("\n")
+                    template_lines_with_overwrites = []
+                    for line in template_lines:
+                        line_to_add = None
+                        for key, value in overwrites.items():
+                            pattern = r"(" + key + '\s{0,}=\s{0,}"?([^"^\n^\r]{0,})"?)'
+                            matches = re.match(pattern, line)
+                            use_quotes = '"' in line
+                            if matches:
+                                line_to_add = "{}={}\n".format(
+                                    key,
+                                    value if not use_quotes else '"{}"'.format(value),
+                                )
+                                logging.info(
+                                    "Using value {} (in quotes: {}) for key {} of entry {}".format(
+                                        value,
+                                        use_quotes,
+                                        key,
+                                        number,
+                                    )
+                                )
+                                break
+                        if line_to_add:
+                            template_lines_with_overwrites.append(line_to_add)
+                        else:
+                            template_lines_with_overwrites.append(line + "\n")
+                        result = "".join(template_lines_with_overwrites)
+                full_path = join(target_path, short_name + "_" + number + ".veh")
+                with open(full_path, "w") as file:
+                    file.write(result)
 
 
 def deploy_server(
@@ -139,6 +261,27 @@ def deploy_server(
 
         install_mod(server_config, int(workshop_id), component_info["name"])
         onStateChange("Installing vehicle", component_info["name"], status_hooks)
+        version = get_latest_version(
+            join(root_path, "server", "Installed", "Vehicles", component_info["name"]),
+            component_info["version"] == "latest",
+        )
+        files = extract_veh_files(root_path, component_info["name"], version)
+        build_path = join(root_path, "build")
+        component_path = join(build_path, component_info["name"])
+        files_in_component_path = listdir(component_path)
+        if (
+            len(list(filter(lambda x: x.endswith(".veh"), files_in_component_path)))
+            == 0
+        ):
+            logging.info(
+                f"We did not see a single VEH file inside of {component_path}. We will generate them now."
+            )
+            generate_veh_templates(component_path, files, vehicle)
+        else:
+            logging.info(
+                f"Skipping generation of additional VEh files as there are veh files inside of {component_path}."
+            )
+
         if component_info["update"]:
             create_mas(server_config, component_info, True)
             build_cmp_mod(server_config, component_info, "Vehicles", True)
