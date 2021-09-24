@@ -139,6 +139,65 @@ def extract_veh_files(root_path, component_name: str, version: str):
     return results
 
 
+def extract_gdb_files(root_path, component_name: str, version: str):
+    temp_path = tempfile.mkdtemp()
+    comp_path = join(
+        root_path, "server", "Installed", "Locations", component_name, version
+    )
+    logging.info(
+        "Trying to extract the layout names for component {}".format(component_name)
+    )
+    if not exists(comp_path):
+        logging.info("The mod {} does not exists".format(comp_path))
+        return []
+    mod_mgr_path = join(root_path, "server", "Bin64", "ModMgr.exe")
+    files = list(Path(comp_path).rglob("*.mas"))
+    for file in files:
+        cmd_line_extract = '{} -x"{}" "*.gdb" -o"{}"'.format(
+            mod_mgr_path, file, temp_path
+        )
+        logging.info(
+            "Executing command {} for layout extraction".format(cmd_line_extract)
+        )
+        p = subprocess.Popen(cmd_line_extract, shell=True, stderr=subprocess.PIPE)
+        return_code = p.wait()
+        if return_code != 0:
+            raise Exception(
+                "We did not manage to extract any layout definitions. Check the used version."
+            )
+
+    gdb_files = listdir(temp_path)
+
+    results = []
+    for gdb_file in gdb_files:
+        results.append(join(temp_path, gdb_file))
+    return results
+
+
+def get_layouts(root_path, component_name: str, version: str):
+    gdb_files = extract_gdb_files(root_path, component_name, version)
+    logging.info("Found {} files as gdb definition".format(len(gdb_files)))
+    if len(gdb_files) == 0:
+        logging.exception(
+            "We did not manage to extract any layout definitions. Check the used version."
+        )
+        raise Exception(
+            "We did not manage to extract any layout definitions. Check the used version."
+        )
+    entries = []
+    for file in gdb_files:
+        full_path = join(file)
+        with open(full_path, "r") as gdb_handle:
+            content = gdb_handle.readlines()
+            for line in content:
+                if "EventName" in line and "Short" not in line:
+                    parts = line.split("=")
+                    layout = parts[1].strip()
+                    if layout not in entries:
+                        entries.append(layout)
+    return entries
+
+
 def get_entries_from_mod(root_path, component_name: str, version: str):
     veh_files = extract_veh_files(root_path, component_name, version)
     logging.info("Found {} files as vehicle definition".format(len(veh_files)))

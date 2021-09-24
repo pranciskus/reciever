@@ -8,7 +8,7 @@ from json import loads, dumps, load, dump
 import re
 from distutils.version import LooseVersion
 import logging
-from rf2.steam import get_entries_from_mod, extract_veh_files
+from rf2.steam import get_entries_from_mod, extract_veh_files, get_layouts
 from rf2.util import get_server_port
 from datetime import datetime
 
@@ -263,9 +263,11 @@ def deploy_server(
         onStateChange("Installing vehicle", component_info["name"], status_hooks)
 
         if component_info["update"]:
-            
+
             version = get_latest_version(
-                join(root_path, "server", "Installed", "Vehicles", component_info["name"]),
+                join(
+                    root_path, "server", "Installed", "Vehicles", component_info["name"]
+                ),
                 component_info["version"] == "latest",
             )
             files = extract_veh_files(root_path, component_info["name"], version)
@@ -607,7 +609,9 @@ def create_conditions(
     weather_file_path = join(
         weather_file_parent, properties["WET"].replace(".WET", "s.WET")
     )
-    weather_template = properties["WET_SOURCE"]
+    weather_template = (
+        weather_file_path if exists(weather_file_path) else properties["WET_SOURCE"]
+    )
     logging.info(f"The file {weather_template} is used as a template.")
     extraction_path = dirname(properties["GDB_SOURCE"])
     extraction_path_files = listdir(extraction_path)
@@ -831,13 +835,35 @@ def build_mod(
             "as mod version for item",
             track_components["name"],
         )
+    layouts = get_layouts(
+        root_path, track_components["name"], track_components["version"]
+    )
+    layouts_string = ""
+    found_track = False
+    for layout in layouts:
+        enable_flag = "1" if track["layout"] == layout else 0
+        if enable_flag == "1":
+            found_track = True
+        layout_text = layout.replace('"', '\\"')
+        layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
 
+    if found_track:
+        logging.info(
+            "We found the track desired, all other track layouts are set to be disabled. Track desired: "
+            + track["layout"]
+        )
+    else:
+        layouts_string = '"' + track["layout"].replace('"', '\\"') + ',1"'
+        desired_layout = track["layout"]
+        logging.info(
+            f"We don't found the desired layout in the gdb layout list. Falling back to old method. Desired layout name is {desired_layout}, track list is {layouts}"
+        )
     replacements = {
         "mod_name": mod_info["name"],
         "mod_version": mod_info["version"],
         "trackmod_name": track_components["name"],
         "trackmod_version": "v" + track_components["version"],
-        "layouts": '"' + track["layout"].replace('"', '\\"') + ',1"',
+        "layouts": layouts_string,
         "location": join(root_path, "server", "Packages", mod_info["name"] + ".rfmod"),
         "veh_mods_count": str(len(vehicles)),
         "veh_mod_contents": veh_contents,
