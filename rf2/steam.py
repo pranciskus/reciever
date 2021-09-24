@@ -98,6 +98,7 @@ def get_mod_files_from_folder(source_path: str) -> list:
     Lists all rfcmp files from folder
     """
     if not exists(source_path):
+        logging.warning(f"The path {source_path} is not existing")
         return []
     return list(filter(lambda r: ".rfcmp" in r, listdir(source_path)))
 
@@ -118,7 +119,9 @@ def extract_veh_files(root_path, component_name: str, version: str):
     mod_mgr_path = join(root_path, "server", "Bin64", "ModMgr.exe")
     files = list(Path(comp_path).rglob("*.mas"))
     for file in files:
-        cmd_line_extract = '{} -x{} "*.veh" -o{}'.format(mod_mgr_path, file, temp_path)
+        cmd_line_extract = '{} -x"{}" "*.veh" -o"{}"'.format(
+            mod_mgr_path, file, temp_path
+        )
         logging.info(
             "Executing command {} for vehicle extraction".format(cmd_line_extract)
         )
@@ -138,9 +141,7 @@ def extract_veh_files(root_path, component_name: str, version: str):
 
 def get_entries_from_mod(root_path, component_name: str, version: str):
     veh_files = extract_veh_files(root_path, component_name, version)
-    logging.info(
-        "Found {} files as vehicle definition in {}".format(len(veh_files), temp_path)
-    )
+    logging.info("Found {} files as vehicle definition".format(len(veh_files)))
     if len(veh_files) == 0:
         logging.exception(
             "We did not manage to extract any vehicle definitions. Check the used version."
