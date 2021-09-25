@@ -47,7 +47,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
     if command == "install" or command == "update":
         branch = server_config["mod"]["branch"]
         command_line = (
-            steam_path + f" +force_install_dir {server_path} "
+            '"' + steam_path + f'" +force_install_dir "{server_path}" '
             " " + STEAMCMDCOMMANDS[command] + " -beta " + branch
         )
     else:
