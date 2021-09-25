@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from re import match
 import logging
+import sys
 
 STEAMCMDCOMMANDS = {
     "add": f"+login anonymous +workshop_download_item 365960",
