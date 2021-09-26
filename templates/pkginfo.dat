@@ -18,8 +18,8 @@ Location=#location
 CurRFM=0
 NumRFM=1
 RFM=#build_path\#mod_name.mas
-NumTrackFiles=1
-Track="#trackmod_name #trackmod_version,0" #layouts
+NumTrackFiles=#track_mods_count
+#track_mod_contents
 NumVehicleFiles=#veh_mods_count
 #veh_mod_contents
 NumOtherFiles=0

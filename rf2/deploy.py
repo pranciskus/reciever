@@ -292,9 +292,7 @@ def deploy_server(
                 "Creating cmp mod for vehicle", component_info["name"], status_hooks
             )
 
-    used_track = None
     for workshop_id, track in tracks.items():
-        used_track = track
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
@@ -346,7 +344,7 @@ def deploy_server(
         "{} {}".format(mod_info["name"], mod_info["version"]),
         status_hooks,
     )
-    build_mod(server_config, vehicles, used_track, mod_info, rfm_contents)
+    build_mod(server_config, vehicles, tracks, mod_info, rfm_contents)
 
     # set real versions
     for _, vehicle in event_config["cars"].items():
@@ -771,7 +769,7 @@ def get_latest_version(root_path: str, latest=True) -> str:
 
 
 def build_mod(
-    server_config: dict, vehicles: dict, track: dict, mod_info: dict, rfm_contents: str
+    server_config: dict, vehicles: dict, tracks: dict, mod_info: dict, rfm_contents: str
 ):
     root_path = server_config["server"]["root_path"]
     data = ""
@@ -779,6 +777,7 @@ def build_mod(
         data = f.read()
 
     veh_contents = ""
+    track_contents = ""
     for _, vehicle in vehicles.items():
         component = vehicle["component"]
         name = component["name"]
@@ -816,56 +815,53 @@ def build_mod(
 
         veh_contents = veh_contents + line + "\n"
 
-    # multiple tracks are not supported
-    track_components = track["component"]
+    for _, track in tracks.items():
+        component = track["component"]
+        name = component["name"]
+        version = component["version"]
 
-    if (
-        track_components["version"] == "latest"
-        or track_components["version"] == "latest-even"
-    ):
-        track_components["version"] = get_latest_version(
-            join(
-                root_path, "server", "Installed", "Locations", track_components["name"]
-            ),
-            track_components["version"] == "latest",
-        )
-        print(
-            "Using",
-            track_components["version"],
-            "as mod version for item",
-            track_components["name"],
-        )
-    layouts = get_layouts(
-        root_path, track_components["name"], track_components["version"]
-    )
-    layouts_string = ""
-    found_track = False
-    for layout in layouts:
-        enable_flag = "1" if track["layout"] == layout else 0
-        if enable_flag == "1":
-            found_track = True
-        layout_text = layout.replace('"', '\\"')
-        layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
+        # version == latest -> choose "latest" available version
+        if version == "latest" or version == "latest-even":
+            # use the latest one or the lastest even version
+            version = get_latest_version(
+                join(root_path, "server", "Installed", "Locations", name),
+                version == "latest",
+            )
+            logging.info(f"Using {version} as mod version for item {name}")
+            print("Using", version, "as mod version for item", name)
 
-    if found_track:
-        logging.info(
-            "We found the track desired, all other track layouts are set to be disabled. Track desired: "
-            + track["layout"]
-        )
-    else:
-        layouts_string = '"' + track["layout"].replace('"', '\\"') + ',1"'
-        desired_layout = track["layout"]
-        logging.info(
-            f"We don't found the desired layout in the gdb layout list. Falling back to old method. Desired layout name is {desired_layout}, track list is {layouts}"
-        )
+        line = 'Track="' + name + " v" + version + ',0" '
+        layouts = get_layouts(root_path, name, version)
+        layouts_string = ""
+        found_track = False
+        for layout in layouts:
+            enable_flag = "1" if track["layout"] == layout else 0
+            if enable_flag == "1":
+                found_track = True
+            layout_text = layout.replace('"', '\\"')
+            layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
+        if found_track:
+            logging.info(
+                "We found the track desired, all other track layouts are set to be disabled. Track desired: "
+                + track["layout"]
+            )
+        else:
+            layouts_string = '"' + track["layout"].replace('"', '\\"') + ',1"'
+            desired_layout = track["layout"]
+            logging.info(
+                f"We don't found the desired layout in the gdb layout list. Falling back to old method. Desired layout name is {desired_layout}, track list is {layouts}"
+            )
+
+        line = line + layouts_string
+        track_contents = track_contents + line + "\n"
+
     replacements = {
         "mod_name": mod_info["name"],
         "mod_version": mod_info["version"],
-        "trackmod_name": track_components["name"],
-        "trackmod_version": "v" + track_components["version"],
-        "layouts": layouts_string,
         "location": join(root_path, "server", "Packages", mod_info["name"] + ".rfmod"),
+        "track_mods_count": str(len(tracks)),
         "veh_mods_count": str(len(vehicles)),
+        "track_mod_contents": track_contents,
         "veh_mod_contents": veh_contents,
         "build_path": join(root_path, "build"),
     }
