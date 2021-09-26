@@ -835,21 +835,37 @@ def build_mod(
         layouts_string = ""
         found_track = False
         for layout in layouts:
-            enable_flag = "1" if track["layout"] == layout else 0
-            if enable_flag == "1":
-                found_track = True
-            layout_text = layout.replace('"', '\\"')
-            layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
+            possible_values = layout.keys()
+            for possible_value in possible_values:
+                enable_flag = "1" if track["layout"] == layout[possible_value] else 0
+                logging.info(
+                    "Checking if layout key "
+                    + possible_value
+                    + " with value "
+                    + layout[possible_value]
+                    + " can match "
+                    + track["layout"]
+                    + f": {enable_flag}"
+                )
+                if enable_flag == "1":
+                    found_track = True
+                    break
+            if found_track:
+                layout_text = layout["EventName"].replace('"', '\\"')
+                layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
+                break
         if found_track:
             logging.info(
                 "We found the track desired, all other track layouts are set to be disabled. Track desired: "
                 + track["layout"]
             )
         else:
-            layouts_string = '"' + track["layout"].replace('"', '\\"') + ',1"'
+            for layout in layouts:
+                layout_text = layout.replace('"', '\\"')
+                layouts_string = layouts_string + '"' + f'{layout_text},1"'
             desired_layout = track["layout"]
             logging.info(
-                f"We don't found the desired layout in the gdb layout list. Falling back to old method. Desired layout name is {desired_layout}, track list is {layouts}"
+                f"We don't found the desired layout in the gdb layout list. Enabling all tracks. Desired layout name is {desired_layout}, track list is {layouts}"
             )
 
         line = line + layouts_string
@@ -1240,9 +1256,10 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         raise Exception("The default weather template is missing")
     file_map = find_weather_and_gdb_files(root_path, mod_name)
     needles = {
-        "TrackName": r"TrackName\s+=\s+([^\n^\/]+)",
-        "EventName": r"EventName\s+=\s+([^\n^\/]+)",
-        "VenueName": r"VenueName\s+=\s+([^\n^\/]+)",
+        "TrackName": r"TrackName\s+=\s+([^\n]+)",
+        "EventName": r"EventName\s+=\s+([^\n]+)",
+        "VenueName": r"VenueName\s+=\s+([^\n]+)",
+        "TrackNameShort": r"TrackNameShort\s+=\s+([^\n]+)",
         "SettingsFolder": r"SettingsFolder\s+=\s+([^\n^\/]+)",
     }
     property_map = {}
@@ -1280,7 +1297,7 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
 
     for key, properties in property_map.items():
         haystack = []
-        for needle in ["TrackName", "EventName", "Venuename"]:
+        for needle in ["TrackNameShort", "TrackName", "EventName", "VenueName"]:
             if needle in properties:
                 haystack.append(properties[needle])
         if desired_layout in haystack:
