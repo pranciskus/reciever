@@ -190,12 +190,16 @@ def get_layouts(root_path, component_name: str, version: str):
         full_path = join(file)
         with open(full_path, "r") as gdb_handle:
             content = gdb_handle.readlines()
+            result = {"EventName": None, "TrackName": None, "TrackNameShort": None}
             for line in content:
-                if "EventName" in line and "Short" not in line:
-                    parts = line.split("=")
-                    layout = parts[1].strip()
-                    if layout not in entries:
-                        entries.append(layout)
+                needles = result.keys()
+                for needle in needles:
+                    if needle in line:
+                        parts = line.split("=")
+                        layout = parts[1].lstrip().replace("\n", "")
+                        result[needle] = layout
+
+            entries.append(result)
     return entries
 
 
