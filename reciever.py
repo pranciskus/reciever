@@ -21,7 +21,7 @@ from logging import error, handlers, Formatter, getLogger, DEBUG, INFO, info
 from waitress import serve
 from threading import Thread, Lock
 from time import sleep
-import win32net
+from sys import platform
 from os import getlogin
 from re import match
 
@@ -363,6 +363,9 @@ def deploy_server_config():
 
         onStateChange("Deployment successfull", None, status_hooks)
     except Exception as e:
+        import traceback
+
+        print(traceback.print_exc())
         logger.info(str(e))
     finally:
         soft_lock_toggle()
@@ -687,13 +690,27 @@ def after_request_func(response):
 
 if __name__ == "__main__":
     # check for correct user
-    groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
+    print("    _   _____  __")
+    print("   /_\ | _ \ \/ /")
+    print("  / _ \|  _/>  < ")
+    print(" /_/ \_\_| /_/\_\\")
+    print("stop debugging, start racing!")
+    if platform != "win32":
+        from distro import name
+
+        distro_name = name()
+
+        print(f"This reciever runs with the experimental changes on {distro_name}")
     assumed_admin = False
-    for group in groups:
-        # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
-        if "admin" in group.lower():
-            assumed_admin = True
-            break
+    if platform == "win32":
+        import win32net
+
+        groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
+        for group in groups:
+            # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
+            if "admin" in group.lower():
+                assumed_admin = True
+                break
     if assumed_admin and "--admin" not in argv:
         raise Exception(
             "The reciever cannot be run as administrator. Use a dedicated user"

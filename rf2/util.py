@@ -1,4 +1,3 @@
-from pywinauto import Desktop, WindowSpecification
 from os.path import join, exists, sep
 from os import getcwd, mkdir, pardir
 from time import sleep
@@ -10,6 +9,8 @@ import socket
 from pathlib import Path
 from requests import get
 from rf2.setup import install_server
+from sys import platform
+import logging
 
 
 def get_main_window(server_config: dict):
@@ -22,6 +23,13 @@ def get_main_window(server_config: dict):
     Returns:
         A WindowSpecification containing the dialog window.
     """
+    if platform != "win32":
+        logging.info(
+            "Attempted to call an action with window indentification, which is not supported on linux"
+        )
+        return null
+    from pywinauto import Desktop, WindowSpecification
+
     root_path = server_config["server"]["root_path"]
     server_root_path = join(root_path, "server") + "\\"
     dialog = Desktop(backend="win32").window(title=server_root_path)

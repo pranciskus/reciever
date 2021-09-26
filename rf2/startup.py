@@ -8,7 +8,8 @@ from rf2.util import (
 from rf2.interaction import chat, do_action, Action
 from rf2.deploy import update_weather
 import logging
-from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
+from subprocess import Popen
+from sys import platform
 from string import ascii_uppercase, digits
 from random import choice
 from psutil import process_iter
@@ -23,7 +24,9 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
         mod = server_config["mod"]["mod"]
         server_binary_path = join(server_root_path, "Bin64", "rFactor2 Dedicated.exe")
         server_binary_commandline = (
-            server_binary_path
+            '"'
+            + server_binary_path
+            + '"'
             + f' +path="{server_root_path}"'
             + f"  +profile=player  +oneclick"
         )
@@ -51,7 +54,24 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
             file.write("[SETTINGS]\n")
             file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
             file.write("[TRACKS]\n")
-        Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        if platform == "win32":
+            from subprocess import HIGH_PRIORITY_CLASS
+
+            Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        else:
+            wineprefix_root = server_config["server"]["wineprefix_root_path"]
+            wine_path = server_config["server"]["wine_path"]
+            server_root_path = join(wineprefix_root, "server").replace(
+                "/", "\\"
+            )  # path within wine
+            args = [
+                wine_path,
+                server_binary_path,
+                f' +path="{server_root_path}"',
+                f" +profile=player  +oneclick",
+            ]
+            print(args)
+            Popen(args)
     except Exception as e:
         from traceback import print_exc
 
