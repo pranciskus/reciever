@@ -1301,6 +1301,12 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
             if needle in properties:
                 haystack.append(properties[needle])
         if desired_layout in haystack:
+            desired_layout = properties["EventName"]
+            logging.info(
+                "Setting the desired layout to {} to make sure the game works with it.".format(
+                    desired_layout
+                )
+            )
             logging.info("Using data {} for weather injection.".format(desired_layout))
             # write a marker to remember the GDB name
             # ASSUMPTION = GDB FILENAME IN UPPERCASE == CALLVOTE NAME
