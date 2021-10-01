@@ -11,11 +11,12 @@ from os import linesep
 def poll_server_async(event):
     config = get_server_config()
     callback_target = config["mod"]["callback_target"]
-    if callback_target is not None:
-        try:
-            got = post(callback_target, json=event)
-        except:
-            pass
+    if "heartbeat_only" in config["mod"] and not config["mod"]["heartbeat_only"]:
+        if callback_target is not None:
+            try:
+                got = post(callback_target, json=event)
+            except:
+                pass
 
 
 def poll_server_status_async(status):
