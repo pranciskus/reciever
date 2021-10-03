@@ -363,6 +363,8 @@ def deploy_server_config():
 
         onStateChange("Deployment successfull", None, status_hooks)
     except Exception as e:
+        import traceback
+        print(traceback.print_exc())
         logger.info(str(e))
     finally:
         soft_lock_toggle()
@@ -443,6 +445,7 @@ def get_skins():
 def install_plugins():
     config = get_server_config()
     server_bin_path = join(config["server"]["root_path"], "server", "Bin64", "Plugins")
+    paths = loads(request.form.get("paths"))
     if request.method == "POST":
         if len(request.files) == 0:
             abort(418)
@@ -455,7 +458,7 @@ def install_plugins():
         "player",
         "CustomPluginVariables.JSON",
     )
-    config = {}
+    plugin_config = {}
     if exists(plugin_config_path):
         unlink(plugin_config_path)
 
@@ -468,19 +471,38 @@ def install_plugins():
 
     for file, iostream in request.files.items():
         base_name = basename(file)
-        got = iostream.save(join(server_bin_path, base_name))
-        info(
-            "Plugin file for {} injected into {}".format(
-                base_name, join(server_bin_path, base_name)
-            )
-        )
-    for plugin, overwrite in plugins.items():
-        config[plugin] = overwrite
-        config[plugin][" Enabled"] = 1
+        if base_name in paths:
+            info("The plugin file {} has a different path. We will use this path: {}".format(base_name, paths[base_name]))
+            target_path = join(config["server"]["root_path"], "server", paths[base_name])
+            if not exists(target_path):
+                Path(target_path).mkdir(parents=True, exist_ok=True)
+                info(f"Created path {target_path} as it was not existing")
+            else:
+                info(f"Path {target_path} exists and will not be cleaned")
 
-        info("Placing plugin {}".format(plugin))
+
+            got = iostream.save(join(target_path, base_name))
+            info(
+                "Plugin file for {} injected into {}".format(
+                    base_name, join(target_path, base_name)
+                )
+            )
+        else:
+            got = iostream.save(join(server_bin_path, base_name))
+            info(
+                "Plugin file for {} injected into {}".format(
+                    base_name, join(server_bin_path, base_name)
+                )
+            )
+    for plugin, overwrite in plugins.items():
+        if ".dll" in plugin.lower():
+            plugin_config[plugin] = overwrite
+            plugin_config[plugin][" Enabled"] = 1
+            info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
+        else:
+            info(f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON")
     with open(plugin_config_path, "w") as file:
-        file.write(dumps(config))
+        file.write(dumps(plugin_config))
     return json_response({"is_ok": True})
 
 
