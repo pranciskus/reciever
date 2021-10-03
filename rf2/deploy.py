@@ -837,19 +837,23 @@ def build_mod(
         for layout in layouts:
             possible_values = layout.keys()
             for possible_value in possible_values:
-                enable_flag = "1" if track["layout"] == layout[possible_value] else 0
-                logging.info(
-                    "Checking if layout key "
-                    + possible_value
-                    + " with value "
-                    + layout[possible_value]
-                    + " can match "
-                    + track["layout"]
-                    + f": {enable_flag}"
-                )
-                if enable_flag == "1":
-                    found_track = True
-                    break
+                if layout[possible_value] is not None:
+                    enable_flag = "1" if track["layout"] == layout[possible_value] else 0
+                    logging.info(f"Found data {possible_value}, {layout}, {track}")
+                    logging.info(
+                        "Checking if layout key "
+                        + possible_value
+                        + " with value "
+                        + layout[possible_value]
+                        + " can match "
+                        + track["layout"]
+                        + f": {enable_flag}"
+                    )
+                    if enable_flag == "1":
+                        found_track = True
+                        break
+                else:
+                    logging.info(f"Skipping key {possible_value} as the value is None")
             if found_track:
                 layout_text = layout["EventName"].replace('"', '\\"')
                 layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
