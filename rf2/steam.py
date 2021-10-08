@@ -65,7 +65,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
         )
 
     if arg is not None:
-        command_line = command_line + " " + arg
+        command_line = command_line + " " + str(arg)
     command_line = command_line + f" +quit"
     try:
         logging.info("Running shell command {}".format(command_line))
@@ -251,9 +251,10 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
                 raise Exception("Failed to install mod. Check log")
         else:
             source_path = join(root_path, "items", component_name)
-    logging.info(
-        "Choosing source path {} for component {}".format(source_path, component_name)
-    )
+    if component_name is not None:
+        logging.info(
+            "Choosing source path {} for component {}".format(source_path, component_name)
+        )
 
     files = (
         get_mod_files_from_steam(server_config, str(id))

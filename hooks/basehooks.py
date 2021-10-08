@@ -11,7 +11,9 @@ from os import linesep
 def poll_server_async(event):
     config = get_server_config()
     callback_target = config["mod"]["callback_target"]
-    if "heartbeat_only" in config["mod"] and not config["mod"]["heartbeat_only"]:
+    do_request = "heartbeat_only" in config["mod"] and not config["mod"]["heartbeat_only"]
+    is_status_change = "type" in event and event["type"] == "SC"
+    if do_request or is_status_change:
         if callback_target is not None:
             try:
                 got = post(callback_target, json=event)

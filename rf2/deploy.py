@@ -243,6 +243,11 @@ def deploy_server(
             logging.info(
                 f"The provided workshop id {raw_id} is suffixed. Removed suffix. Using {workshop_id} as the ID"
             )
+        if int(vehicle["component"]["base_steam_id"])  > 0:
+            logging.info(f"The item is based on another item. Demanding installation of base mod.")
+            onStateChange("Installing base workshop item", vehicle["component"]["base_steam_id"], status_hooks)
+            run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
+            install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)    
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
@@ -293,6 +298,11 @@ def deploy_server(
             )
 
     for workshop_id, track in tracks.items():
+        if int(vehicle["component"]["base_steam_id"])  > 0:
+            logging.info(f"The item is based on another item. Demanding installation of base mod.")
+            onStateChange("Installing base workshop item", vehicle["component"]["base_steam_id"], status_hooks)
+            run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
+            install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)  
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
@@ -313,6 +323,26 @@ def deploy_server(
             component_info["version"] = "latest-even"
 
         if component_info["update"]:
+            build_path = join(root_path, "build")
+            component_path = join(build_path, component_info["name"])
+            files_in_component_path = listdir(component_path)
+            if (
+                len(list(filter(lambda x: x.lower().endswith(".mas"), files_in_component_path)))  > 0
+            ):
+                logging.info("The component build path contains prebuild MAS files. We will pick them up instead of generating own ones")
+                provided_mas_paths = list(filter(lambda x: x.lower().endswith(".mas"), files_in_component_path))
+                modmgr_path = join(root_path, "server", "Bin64\\ModMgr.exe")
+                for mas_file in provided_mas_paths:
+                    full_mas_path = join(component_path, mas_file)
+                    # extract the mas file
+                    logging.info(f"Attempting to extract files of {full_mas_path} into {component_path}")         
+                    cmd_line = '{} -x"{}" "*.*" -o{}'.format(
+                        modmgr_path, full_mas_path, component_path
+                    )
+                    subprocess.check_output(cmd_line)
+                    logging.info("Found {} files in {}".format(len(listdir(component_path)) -1, component_path))   
+                    # remove the mas file as it serves no purpose anymore
+                    unlink(full_mas_path)
             create_mas(server_config, component_info, True, False)
             try:
                 build_cmp_mod(server_config, component_info, "Locations", True)
@@ -865,7 +895,7 @@ def build_mod(
             )
         else:
             for layout in layouts:
-                layout_text = layout.replace('"', '\\"')
+                layout_text = layout["EventName"].replace('"', '\\"')
                 layouts_string = layouts_string + '"' + f'{layout_text},1"'
             desired_layout = track["layout"]
             logging.info(
