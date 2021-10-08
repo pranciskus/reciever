@@ -140,6 +140,10 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
 def deploy_server(
     server_config: dict, rfm_contents: str, grip_data, onStateChange, status_hooks
 ) -> bool:
+    root_path = server_config["server"]["root_path"]
+    log_path = join(root_path, "reciever.log")
+    with open(log_path, 'w'):
+        pass
     logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
@@ -178,7 +182,6 @@ def deploy_server(
         if "conditions" in server_config["mod"]
         else None
     )
-    root_path = server_config["server"]["root_path"]
 
     event_config = server_config["mod"]
 
