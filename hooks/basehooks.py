@@ -1,12 +1,14 @@
 from time import time
 from json import dumps
-from requests import post
+from requests import post, get
 from threading import Thread
 from reciever import get_server_config, chat
 from re import sub
 from os.path import join
 from os import linesep
 
+
+PING_TARGET = "https://ping.apx.chmr.eu"
 
 def poll_server_async(event):
     config = get_server_config()
@@ -376,13 +378,36 @@ def on_flag_change(driver, old_flag, new_flag, newStatus):
 def on_tick(status):
     poll_status_server(status)
 
+def do_stat_poll(target):
+    get(target, headers= {
+        "User-Agent": 'apx-reciever'
+    })
 
 def on_stop(status):
-    poll_status_server(status)
+    poll_status_server(status)    
+    try: 
+        target_url = PING_TARGET + "/stop"
+        do_stat_poll(target_url)
+    except:
+        pass
+
+
+
+def on_start():   
+    try: 
+        target_url = PING_TARGET + "/start"
+        do_stat_poll(target_url)
+    except:
+        pass
 
 
 def on_deploy():
     publish_logfile()
+    try: 
+        target_url = PING_TARGET + "/deploy_finished"
+        do_stat_poll(target_url,)
+    except:
+        pass
 
 
 def on_car_count_change(old_status_cars, new_status_cars, newStatus):

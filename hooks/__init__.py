@@ -14,6 +14,7 @@ from hooks.basehooks import (
     on_pitting,
     on_tick,
     on_stop,
+    on_start,
     on_deploy,
     on_car_count_change,
     on_low_speed,
@@ -45,6 +46,7 @@ register("onShownFlagChange", HOOKS, on_flag_change)
 register("onGarageToggle", HOOKS, on_garage_toggle)
 register("onPittingChange", HOOKS, on_pitting)
 register("onTick", HOOKS, on_tick)
+register("onStart", HOOKS, on_start)
 register("onStop", HOOKS, on_stop)
 register("onDeploy", HOOKS, on_deploy)
 register("onCarCountChange", HOOKS, on_car_count_change)

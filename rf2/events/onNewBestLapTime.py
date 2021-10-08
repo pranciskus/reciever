@@ -6,7 +6,7 @@ from rf2.events import get_prop_map
 def onNewBestLapTime(oldStatus, newStatus, all_hooks):
     global overall_best_lap
     global overall_best_time
-    if newStatus["currentEventTime"] < overall_best_time:
+    if overall_best_time and newStatus["currentEventTime"] < overall_best_time:
         # session was most likely restarted
         overall_best_lap = None
         overall_best_time = None
