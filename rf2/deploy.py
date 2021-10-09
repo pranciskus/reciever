@@ -301,11 +301,11 @@ def deploy_server(
             )
 
     for workshop_id, track in tracks.items():
-        if int(vehicle["component"]["base_steam_id"])  > 0:
+        if int(track["component"]["base_steam_id"])  > 0:
             logging.info(f"The item is based on another item. Demanding installation of base mod.")
-            onStateChange("Installing base workshop item", vehicle["component"]["base_steam_id"], status_hooks)
-            run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
-            install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)  
+            onStateChange("Installing base workshop item", track["component"]["base_steam_id"], status_hooks)
+            run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
+            install_mod(server_config, int(track["component"]["base_steam_id"]), None)  
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
