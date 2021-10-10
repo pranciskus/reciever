@@ -191,18 +191,18 @@ def deploy_server(
         and server_config["mod"]["remove_unused_mods"]
     ):
         all_steam_ids = []
-        for workshop_id, _ in vehicles.items():
-            id = workshop_id
-            if ":" in workshop_id:  # the workshop_id is prefixed
-                raw_id = workshop_id
+        for key, vehicle in vehicles.items():
+            id = vehicle["component"]["steam_id"]
+            if ":" in id:  # the workshop_id is prefixed
+                raw_id = id
                 id = workshop_id.split(":")[0]
 
             if id not in all_steam_ids and "-" not in str(id):
                 all_steam_ids.append(id)
-        for workshop_id, _ in tracks.items():
-            id = workshop_id
-            if ":" in workshop_id:  # the workshop_id is prefixed
-                raw_id = workshop_id
+        for workshop_id, track in tracks.items():
+            id = track["component"]["steam_id"]
+            if ":" in id:  # the workshop_id is prefixed
+                raw_id = id
                 id = workshop_id.split(":")[0]
 
             if id not in all_steam_ids and "-" not in str(id):
@@ -239,7 +239,8 @@ def deploy_server(
     onStateChange("Restoring vanilla state and doing Steam update", None, status_hooks)
     restore_vanilla(server_config)
     # build vehicle mods
-    for workshop_id, vehicle in vehicles.items():
+    for key, vehicle in vehicles.items():
+        workshop_id = str(vehicle["component"]["steam_id"])
         if ":" in workshop_id:  # the workshop_id is prefixed
             raw_id = workshop_id
             workshop_id = workshop_id.split(":")[0]
@@ -300,7 +301,8 @@ def deploy_server(
                 "Creating cmp mod for vehicle", component_info["name"], status_hooks
             )
 
-    for workshop_id, track in tracks.items():
+    for key, track in tracks.items():
+        workshop_id = str(track["component"]["steam_id"])
         if int(track["component"]["base_steam_id"])  > 0:
             logging.info(f"The item is based on another item. Demanding installation of base mod.")
             onStateChange("Installing base workshop item", track["component"]["base_steam_id"], status_hooks)
