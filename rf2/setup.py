@@ -45,6 +45,6 @@ def install_server(server_config: dict) -> bool:
         + f' +path="{server_root_path}"'
     )
     got = Popen(server_path)
-    sleep(2)
+    sleep(10)
     got.kill()
     return True
