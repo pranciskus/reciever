@@ -51,7 +51,16 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
             file.write("[SETTINGS]\n")
             file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
             file.write("[TRACKS]\n")
+        
+        
         Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        if server_config["mod"]["real_weather"]:
+            # start the weather_client
+            weather_client_root = join(server_config["server"]["root_path"], "weatherclient")
+            weather_command_line =  join(weather_client_root, "rf2WeatherClient.exe")
+            Popen(weather_command_line, cwd=weather_client_root)
+
+
     except Exception as e:
         from traceback import print_exc
 
@@ -110,18 +119,29 @@ def stop_server(server_config: dict) -> bool:
     Returns:
         The success of the operation
     """
+    real_weather = server_config["mod"]["real_weather"]
 
     root_path = join(server_config["server"]["root_path"], "server")
     binary_path = join(root_path, "Bin64", "rFactor2 Dedicated.exe")
+    weather_binary_path = join(server_config["server"]["root_path"], "weatherclient", "rf2WeatherClient.exe")
     chat(server_config, "Server is shutting down NOW")
     do_action(server_config, Action.RESTARTWEEKEND)
     sleep(5)  # Give the server a chance to react
-
+    server_killed = False
+    weatherclient_killed = not real_weather
     for proc in process_iter():
         name = proc.name()
         if "rFactor" in name:
             exe = proc.exe()
             if exe == binary_path:
                 proc.kill()
-                return True
+                server_killed = True
+        if real_weather and "rf2WeatherClient" in name:
+            exe = proc.exe()
+            if exe == weather_binary_path:
+                proc.kill()
+                weatherclient_killed = True
+        
+        if server_killed and weatherclient_killed:
+            return True
     return False

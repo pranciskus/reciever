@@ -11,8 +11,76 @@ import logging
 from rf2.steam import get_entries_from_mod, extract_veh_files, get_layouts
 from rf2.util import get_server_port
 from datetime import datetime
+import io
+import zipfile
+from requests import get
 
 VERSION_SUFFIX = ".9apx"
+WEATHERCLIENT_URL = "https://forum.studio-397.com/index.php?attachments/rf2weatherpluginv1-14a-zip.40498/"
+
+def add_weather_client(root_path, api_type, key, uid,temp_offset, reinstall=False):
+    weather_path = join(root_path, "weatherclient") 
+    logging.info(
+    f"Adding weather client in directory {weather_path}. API will be {api_type}"
+    )
+    if reinstall:
+        rmtree(weather_path)
+    if not exists(weather_path):
+        # install the weather client structure
+        mkdir(weather_path)
+        r = get(WEATHERCLIENT_URL)
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        z.extractall(weather_path)
+        # create wanted folder structure
+        sub_folder = listdir(weather_path)[0]
+        files_extracted = listdir(join(weather_path, sub_folder))
+        for file in files_extracted:
+            old_path = join(weather_path, sub_folder, file)
+            new_path = join(weather_path, file)
+            move(old_path, new_path)
+        rmtree(join(weather_path, sub_folder))
+    # inject config
+    type_map = {
+        "OpenWeatherMap": "OWApi",
+        "DarkSky": "DSApi",
+        "ClimaCell": "CCApi",
+        "ClimaCell_V4": "CCApiV4"
+    }
+    template_file = join(root_path, "reciever", "templates", "rf2WeatherClient.xml")
+    with open(template_file, "r") as read_handle:
+        content = read_handle.read()
+        content = content.replace("$API$", api_type)
+        content = content.replace("$TYPE$", type_map[api_type])
+        content = content.replace("$KEY$", key)
+        content = content.replace("$UID$", str(uid))
+        content = content.replace("$TEMPOFFSET$", str(temp_offset))
+        target_path = join(weather_path, "rf2WeatherClient.xml")
+        with open(target_path, "w") as write_handle:
+            write_handle.write(content)
+        logging.info(
+            f'Wrote {target_path} weather client file. We will have a temperature offset of {temp_offset}'
+        )
+    # add the weather DLL
+    plugin_src_path = join(weather_path, "rf2WeatherPlugin.dll")
+    plugin_target_path = join(root_path, "server", "Bin64", "Plugins", "rf2WeatherPlugin.dll")
+    copy(plugin_src_path, plugin_target_path)
+    logging.info(
+        f'Added weather plugin file to {plugin_target_path}'
+    )
+    # add the dll to the custom variables json file
+    custom_variables_file = join(root_path, "server", "userData", "player", "CustomPluginVariables.JSON")
+    json = load(open(custom_variables_file, "r"))
+    json["rf2WeatherPlugin.dll"] = {
+        " Enabled": 1, 
+        "LOG": 0, 
+        "UID": int(uid)
+    }
+    new_content = dumps(json)
+    with open(custom_variables_file, "w") as file:
+        file.write(new_content)
+    logging.info(
+        f'Added weather plugin file to {custom_variables_file}'
+    )
 
 
 def generate_veh_templates(target_path: str, veh_templates: list, component_info: dict):

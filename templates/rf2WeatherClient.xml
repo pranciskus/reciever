@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RF2WeatherCfg xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Server />
+  <UID>$UID$</UID>
+  <AutoConnect>true</AutoConnect>
+  <ManTemp>20</ManTemp>
+  <ManCloud>70</ManCloud>
+  <ManCloudMod>1</ManCloudMod>
+  <ManWind>0</ManWind>
+  <ManRain>0</ManRain>
+  <ManDT>3</ManDT>
+  <StartWU>true</StartWU>
+  <StoreApiKey>true</StoreApiKey>
+  <API>$API$</API>
+  <$TYPE$>$KEY$</$TYPE$>
+  <Latitude>2.76</Latitude>
+  <Longitude>101.74</Longitude>
+  <GeoAutoSet>true</GeoAutoSet>
+  <WuRainMod>100</WuRainMod>
+  <RainExp>0.95</RainExp>
+  <WuRainLimit>100</WuRainLimit>
+  <WuDT>3</WuDT>
+  <WuTOff>$TEMPOFFSET$</WuTOff>
+  <LogXML>true</LogXML>
+</RF2WeatherCfg>

@@ -4,7 +4,7 @@ from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
 from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
-from rf2.deploy import deploy_server, VERSION_SUFFIX, update_weather
+from rf2.deploy import deploy_server, VERSION_SUFFIX, update_weather, add_weather_client
 from rf2.setup import install_server
 from rf2.util import create_config, get_server_port, get_public_sim_server_port
 from os.path import join, exists, basename
@@ -24,7 +24,6 @@ from time import sleep
 import win32net
 from os import getlogin
 from re import match
-
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
 from rf2.events.onCarCountChange import onCarCountChange
@@ -354,18 +353,15 @@ def deploy_server_config():
         layout = track["layout"]
 
         if server_config["mod"]["real_weather"]:
-            update_weather(
-                server_config["server"]["root_path"],
-                server_config["mod"]["sessions"],
-                name,
-                layout,
-            )
-
+            onStateChange("Injecting weather plugin", None, status_hooks)
+            add_weather_client(server_config["server"]["root_path"], server_config["mod"]["weather_api"], server_config["mod"]["weather_key"], server_config["mod"]["weather_uid"],server_config["mod"]["temp_offset"], False)
         onStateChange("Deployment successfull", None, status_hooks)
     except Exception as e:
         import traceback
         print(traceback.print_exc())
         logger.info(str(e))
+        
+        onStateChange(f"Deployment failed: {e}", None, status_hooks)
     finally:
         soft_lock_toggle()
         event_hooks_to_run = (
@@ -451,6 +447,7 @@ def install_plugins():
             abort(418)
 
     plugins = config["mod"]["plugins"]
+    real_weather = config["mod"]["real_weather"]
     plugin_config_path = join(
         config["server"]["root_path"],
         "server",
@@ -466,8 +463,11 @@ def install_plugins():
     for plugin in existing_plugins:
         plugin_path = join(server_bin_path, plugin)
         if ".dll" in plugin_path:
-            info("Removing {}".format(plugin_path))
-            unlink(plugin_path)
+            if real_weather and "rf2WeatherPlugin" in plugin_path:
+                info("NOT Removing {} as this is needed by the real weather injection.".format(plugin_path))
+            else:   
+                info("Removing {}".format(plugin_path))
+                unlink(plugin_path)
 
     for file, iostream in request.files.items():
         base_name = basename(file)
@@ -501,6 +501,12 @@ def install_plugins():
             info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
         else:
             info(f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON")
+    if real_weather:
+         plugin_config["rf2WeatherPlugin"] = {
+             " Enabled": 1,
+             "LOG": 0,
+             "UID": config["mod"]["weather_uid"]
+         }
     with open(plugin_config_path, "w") as file:
         file.write(dumps(plugin_config))
     return json_response({"is_ok": True})
