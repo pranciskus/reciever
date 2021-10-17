@@ -502,7 +502,7 @@ def install_plugins():
         else:
             info(f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON")
     if real_weather:
-         plugin_config["rf2WeatherPlugin"] = {
+         plugin_config["rf2WeatherPlugin.dll"] = {
              " Enabled": 1,
              "LOG": 0,
              "UID": config["mod"]["weather_uid"]
