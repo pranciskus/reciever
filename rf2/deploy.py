@@ -1,7 +1,7 @@
 from os.path import join, exists, basename, pathsep, dirname
 from os import listdir, mkdir, getenv, unlink, stat
 from shutil import copy, rmtree, copytree, move
-from rf2.steam import run_steamcmd, install_mod
+from rf2.steam import run_steamcmd, install_mod, get_steamcmd_path, find_source_path
 import subprocess
 from time import sleep
 from json import loads, dumps, load, dump
@@ -14,6 +14,7 @@ from datetime import datetime
 import io
 import zipfile
 from requests import get
+import hashlib
 
 VERSION_SUFFIX = ".9apx"
 WEATHERCLIENT_URL = "https://forum.studio-397.com/index.php?attachments/rf2weatherpluginv1-14a-zip.40498/"
@@ -216,6 +217,7 @@ def deploy_server(
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
     suffix = server_config["mod"]["suffix"]
+    ignore_fingerprints = "ignore_fingerprints" in server_config["mod"] and server_config["mod"]["ignore_fingerprints"]
     global VERSION_SUFFIX
     if suffix:
         VERSION_SUFFIX = suffix
@@ -252,35 +254,69 @@ def deploy_server(
     )
 
     event_config = server_config["mod"]
+    all_steam_ids = []
+    for key, vehicle in vehicles.items():
+        id = vehicle["component"]["steam_id"]
+        base_id = vehicle["component"]["base_steam_id"]
+        if ":" in str(id):  # the workshop_id is prefixed
+            raw_id = id
+            id = str(id).split(":")[0]
+
+        if base_id != 0 and base_id not in all_steam_ids and "-" not in str(base_id):
+            all_steam_ids.append(base_id)
+        if id not in all_steam_ids and "-" not in str(id):
+            all_steam_ids.append(id)
+
+
+    for workshop_id, track in tracks.items():
+        id = track["component"]["steam_id"]
+        base_id = track["component"]["base_steam_id"]
+        if ":" in str(id):  # the workshop_id is prefixed
+            raw_id = id
+            id = str(id).split(":")[0]
+
+        if base_id != 0 and base_id not in all_steam_ids and "-" not in str(base_id):
+            all_steam_ids.append(base_id)
+        if id not in all_steam_ids and "-" not in str(id):
+            all_steam_ids.append(id)
+
+    logging.info(
+        "We seen {} different steam id's in this deployment.".format(
+            len(all_steam_ids)
+        )
+    )
+
+    for id in all_steam_ids:
+        if id > 0:
+            logging.info(
+                f"Installing workshop item {id} before mod installation to make sure fingerprints can be generated"
+            )
+            run_steamcmd(server_config, "add", id)
+
+    # generate fingerprints
+    
+    apx_origin_path = join(root_path, "reciever", "mod.apx.json")
+    path = join(root_path, "reciever", "mod.json")
+    # for this fingerprint, we will use the path (new file, but without version numbers)
+    if not ignore_fingerprints:
+        fingerprints = get_fingerprints(event_config, server_config,  root_path)
+        
+        fingerprint_path = join(root_path, "reciever", "fingerprint.json")
+        if exists(fingerprint_path):
+            old_file = load(open(fingerprint_path, "r"))
+            if old_file == fingerprints:
+                logging.warning(f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}")
+                raise Exception("No mod files changed, aborted deployment.")
+            else:
+                logging.info("Continuing as planned. Mod content and/ or updates changed.")
+    else:
+        logging.info("User choosed to ignore fingerprints.")
 
     # removal of unused steam mods
     if (
         "remove_unused_mods" in server_config["mod"]
         and server_config["mod"]["remove_unused_mods"]
     ):
-        all_steam_ids = []
-        for key, vehicle in vehicles.items():
-            id = vehicle["component"]["steam_id"]
-            if ":" in id:  # the workshop_id is prefixed
-                raw_id = id
-                id = workshop_id.split(":")[0]
-
-            if id not in all_steam_ids and "-" not in str(id):
-                all_steam_ids.append(id)
-        for workshop_id, track in tracks.items():
-            id = track["component"]["steam_id"]
-            if ":" in id:  # the workshop_id is prefixed
-                raw_id = id
-                id = workshop_id.split(":")[0]
-
-            if id not in all_steam_ids and "-" not in str(id):
-                all_steam_ids.append(id)
-
-        logging.info(
-            "We seen {} different steam id's in this deployment.".format(
-                len(all_steam_ids)
-            )
-        )
         steam_root_path = join(
             root_path, "steamcmd", "steamapps", "workshop", "content", "365960"
         )
@@ -318,12 +354,12 @@ def deploy_server(
         if int(vehicle["component"]["base_steam_id"])  > 0:
             logging.info(f"The item is based on another item. Demanding installation of base mod.")
             onStateChange("Installing base workshop item", vehicle["component"]["base_steam_id"], status_hooks)
-            run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
+            #run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
             install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)    
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
-            run_steamcmd(server_config, "add", workshop_id)
+            #run_steamcmd(server_config, "add", workshop_id)
         component_info = vehicle["component"]
         update = component_info["update"]
         official = component_info["official"]
@@ -374,12 +410,12 @@ def deploy_server(
         if int(track["component"]["base_steam_id"])  > 0:
             logging.info(f"The item is based on another item. Demanding installation of base mod.")
             onStateChange("Installing base workshop item", track["component"]["base_steam_id"], status_hooks)
-            run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
+            #run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
             install_mod(server_config, int(track["component"]["base_steam_id"]), None)  
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
-            run_steamcmd(server_config, "add", workshop_id)
+            #run_steamcmd(server_config, "add", workshop_id)
 
         onStateChange("Installing track", track["component"]["name"], status_hooks)
         install_mod(server_config, int(workshop_id), track["component"]["name"])
@@ -471,7 +507,7 @@ def deploy_server(
                 version == "latest",
             )
         track["component"]["version"] = version
-    path = join(root_path, "reciever", "mod.json")
+    copy(path, apx_origin_path)
     onStateChange("Placed mod.json", None, status_hooks)
     logging.info("Placing updated mod.json")
     with open(path, "w") as file:
@@ -620,9 +656,81 @@ def deploy_server(
 
     logging.info("Finished server deploy")
 
+    # create fingerprint file to allow conditional server updates
+    fingerprint_path = join(root_path, "reciever", "fingerprint.json")
+    logging.info(f"Create modpack fingerprints file {fingerprint_path}")
+    fingerprint_file = get_fingerprints(event_config, server_config, root_path)
+    with open(fingerprint_path, "w") as file:
+        file.write(dumps(fingerprint_file))
+    logging.info(f"Finished fingerprinting")
     onStateChange("Deployment finished successfully", None, status_hooks)
     return True
 
+def get_fingerprints(event_config: dict, server_config: dict, root_path: str):
+    fingerprint_file = {}
+    for _, vehicle in event_config["cars"].items():
+        steam_id = vehicle["component"]["steam_id"]
+        base_steam_id = vehicle["component"]["base_steam_id"]
+        component_name  = vehicle["component"]["name"]
+        # find the mod file of this mod
+        base_mod_fingerprints = None
+        if base_steam_id != 0:
+            base_mod_fingerprints = get_mod_fingerprints(server_config, base_steam_id, None) # a base mod cannot be a file based item
+            fingerprint_file[str(base_steam_id)] = base_mod_fingerprints
+        mod_fingerprints = get_mod_fingerprints(server_config, steam_id, component_name)
+        fingerprint_file[str(steam_id)] = mod_fingerprints
+
+        # check track updates
+        if vehicle["component"]["update"]:
+            build_path = join(root_path, "build", component_name)
+            if exists(build_path):
+                fingerprint_file[f"{steam_id}_update"] =  folder_fingerprints(build_path)
+
+
+    for _, track in event_config["track"].items():
+        steam_id = track["component"]["steam_id"]
+        base_steam_id = track["component"]["base_steam_id"]
+        component_name  = track["component"]["name"]
+        # find the mod file of this mod
+        base_mod_fingerprints = None
+        if base_steam_id != 0:
+            base_mod_fingerprints = get_mod_fingerprints(server_config, base_steam_id, None) # a base mod cannot be a file based item
+            fingerprint_file[str(base_steam_id)] = base_mod_fingerprints
+        mod_fingerprints = get_mod_fingerprints(server_config, steam_id, component_name)
+        fingerprint_file[str(steam_id)] = mod_fingerprints
+
+        # check track updates
+        if track["component"]["update"]:
+            build_path = join(root_path, "build", component_name)
+            if exists(build_path):
+                fingerprint_file[f"{steam_id}_update"] =  folder_fingerprints(build_path)
+    return fingerprint_file
+
+def get_mod_fingerprints(server_config:dict, steam_id: int, component_name: str):
+    steam_root = get_steamcmd_path(server_config)
+    source_path = join(
+        steam_root, "steamapps\\workshop\\content\\365960\\", str(steam_id)
+    )  if steam_id > 0 else find_source_path(root_path, component_name)
+    fingerprints = folder_fingerprints(source_path)
+    return fingerprints
+
+def folder_fingerprints(source_path: str):
+    mod_files = listdir(source_path)
+    fingerprints = {}
+    for mod_file in mod_files:
+        if ".veh" not in mod_file: # we are ignoring generated veh files here.
+            full_path = join(source_path, mod_file)
+            fingerprints[mod_file] = checksum(full_path)
+    return fingerprints
+
+def checksum(filename):
+    h  = hashlib.sha1()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 def update_weather(root_path: str, sessions: list, mod_name, layout):
     properties = find_location_properties(root_path, mod_name, layout)

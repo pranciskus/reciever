@@ -226,6 +226,24 @@ def get_entries_from_mod(root_path, component_name: str, version: str):
                     entries.append(description)
     return entries
 
+def find_source_path(root_path: str, component_name: str):
+    source_path = None
+    if "server_children" in root_path:
+        # the server runs in a managed environment
+        # get new root path, basically do a doubled "cd .."
+        new_root_path = dirname(dirname(root_path))
+        source_path = join(new_root_path, "uploads", "items", component_name)
+        logging.info(
+            f"The server runs in a managed environment. The items root for this will be defined as {source_path}"
+        )
+        if not exists(source_path):
+            logging.error(
+                f"The folder for non workshop item {source_path} does not exists."
+            )
+            raise Exception("Failed to install mod. Check log")
+    else:
+        source_path = join(root_path, "items", component_name)
+    return source_path
 
 def install_mod(server_config: dict, id: int, component_name: str) -> bool:
     root_path = server_config["server"]["root_path"]
@@ -236,21 +254,7 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
             steam_root, "steamapps\\workshop\\content\\365960\\", str(id)
         )
     else:
-        if "server_children" in root_path:
-            # the server runs in a managed environment
-            # get new root path, basically do a doubled "cd .."
-            new_root_path = dirname(dirname(root_path))
-            source_path = join(new_root_path, "uploads", "items", component_name)
-            logging.info(
-                f"The server runs in a managed environment. The items root for this will be defined as {source_path}"
-            )
-            if not exists(source_path):
-                logging.error(
-                    f"The folder for non workshop item {source_path} does not exists."
-                )
-                raise Exception("Failed to install mod. Check log")
-        else:
-            source_path = join(root_path, "items", component_name)
+        source_path = find_source_path(root_path, component_name)
     if component_name is not None:
         logging.info(
             "Choosing source path {} for component {}".format(source_path, component_name)
