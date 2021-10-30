@@ -1,12 +1,14 @@
 import subprocess
-from os.path import join, exists, dirname
-from os import listdir, unlink
+from os.path import join, exists, dirname, getsize
+from os import listdir, unlink, mkdir
 from shutil import copy
 import tempfile
 from pathlib import Path
 from re import match
 import logging
 import sys
+
+LINK_MODS = True
 
 STEAMCMDCOMMANDS = {
     "add": f"+login anonymous +workshop_download_item 365960",
@@ -226,6 +228,7 @@ def get_entries_from_mod(root_path, component_name: str, version: str):
                     entries.append(description)
     return entries
 
+
 def find_source_path(root_path: str, component_name: str):
     source_path = None
     if "server_children" in root_path:
@@ -245,11 +248,22 @@ def find_source_path(root_path: str, component_name: str):
         source_path = join(root_path, "items", component_name)
     return source_path
 
-def install_mod(server_config: dict, id: int, component_name: str) -> bool:
+
+def install_mod(
+    server_config: dict, id: int, component_name: str, ignore_links: bool = False
+) -> bool:
     root_path = server_config["server"]["root_path"]
+    use_global_steam = "global_steam_path" in server_config["mod"]
+    steam_root = get_steamcmd_path(server_config)
+    mod_dump_path = join(steam_root, "mod_dump")
+    if not ignore_links and LINK_MODS and not exists(mod_dump_path):
+        mkdir(mod_dump_path)
+    mod_path = join(mod_dump_path, str(id))
+    if not ignore_links and LINK_MODS and not exists(mod_path):
+        mkdir(mod_path)
+
     source_path = None
     if id > 0:
-        steam_root = get_steamcmd_path(server_config)
         source_path = join(
             steam_root, "steamapps\\workshop\\content\\365960\\", str(id)
         )
@@ -257,7 +271,9 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
         source_path = find_source_path(root_path, component_name)
     if component_name is not None:
         logging.info(
-            "Choosing source path {} for component {}".format(source_path, component_name)
+            "Choosing source path {} for component {}".format(
+                source_path, component_name
+            )
         )
 
     files = (
@@ -281,7 +297,11 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
             copy_results.append(rfmod_target_full_path)
 
     # install the mod into rf2 itself
-    mod_mgr_cmdline = f"{root_path}\\server\\Bin64\\ModMgr.exe -c{root_path}\\server\\"
+    mod_mgr_cmdline = (
+        f"{root_path}\\server\\Bin64\\ModMgr.exe -c{root_path}\\server\\"
+        if not LINK_MODS and not ignore_links
+        else f"{root_path}\\server\\Bin64\\ModMgr.exe -c{mod_dump_path}\\{id}"
+    )
 
     install_results = []
     for rf_mod in copy_results:
@@ -294,5 +314,57 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
         if install[0] != 0:
             logging.warning(f"ModMgr returned {install[0]} as a returncode.")
         install_results.append(install[0] == 0)
+    if LINK_MODS and not ignore_links:
+        logging.info(
+            f"Attempting to create links for the mod contents to the server root {root_path}"
+        )
+        mod_content_path = join(mod_path, "Installed")
+        mod_content_types = listdir(mod_content_path)
+        for type_dir in mod_content_types:  # Vehicles, Locations etc.
+            full_type_path = join(mod_content_path, type_dir)
+            mod_type_contents = listdir(full_type_path)
+            target_parent_folder = join(root_path, "server", "Installed", type_dir)
+            if not exists(target_parent_folder):
+                mkdir(target_parent_folder)
+            for folder in mod_type_contents:
+                target_parent_folder = join(
+                    root_path, "server", "Installed", type_dir, folder
+                )
+                if not exists(target_parent_folder):
+                    mkdir(target_parent_folder)
+                full_src_path = join(full_type_path, folder)
+                versions_content = listdir(full_src_path)
+                for version in versions_content:
+                    version_src_path = join(full_src_path, version)
+                    files_in_version = listdir(version_src_path)
+                    manifest_file_empty = False
+                    for found_file in files_in_version:
+                        if ".mft" in found_file:
+                            full_mft_path = join(version_src_path, found_file)
+                            if getsize(full_mft_path) == 0:
+                                manifest_file_empty = True
+                                break
+
+                    if len(files_in_version) > 0 or not manifest_file_empty:
+                        full_target_path = join(
+                            root_path, "server", "Installed", type_dir, folder, version
+                        )
+                        logging.info(
+                            f"Linking {version_src_path} to {full_target_path}"
+                        )
+                        mklink_cmdline = (
+                            f"mklink /J {full_target_path} {version_src_path}"
+                        )
+                        logging.info(f"Commandline: {mklink_cmdline}")
+                        subprocess.Popen(
+                            mklink_cmdline,
+                            shell=True,
+                            stderr=subprocess.PIPE,
+                        )
+                    else:
+                        logging.warn(
+                            f"Linking {version_src_path} to {full_target_path} aborted. The folder {version_src_path} was empty. We will re-attempt"
+                        )
+                        install_mod(server_config, id, component_name, True)
 
     return list(filter(lambda r: not r, install_results)) == []
