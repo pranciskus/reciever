@@ -15,14 +15,16 @@ import io
 import zipfile
 from requests import get
 import hashlib
+import tempfile
 
 VERSION_SUFFIX = ".9apx"
 WEATHERCLIENT_URL = "https://forum.studio-397.com/index.php?attachments/rf2weatherpluginv1-14a-zip.40498/"
 
-def add_weather_client(root_path, api_type, key, uid,temp_offset, reinstall=False):
-    weather_path = join(root_path, "weatherclient") 
+
+def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=False):
+    weather_path = join(root_path, "weatherclient")
     logging.info(
-    f"Adding weather client in directory {weather_path}. API will be {api_type}"
+        f"Adding weather client in directory {weather_path}. API will be {api_type}"
     )
     if reinstall:
         rmtree(weather_path)
@@ -45,7 +47,7 @@ def add_weather_client(root_path, api_type, key, uid,temp_offset, reinstall=Fals
         "OpenWeatherMap": "OWApi",
         "DarkSky": "DSApi",
         "ClimaCell": "CCApi",
-        "ClimaCell_V4": "CCApiV4"
+        "ClimaCell_V4": "CCApiV4",
     }
     template_file = join(root_path, "reciever", "templates", "rf2WeatherClient.xml")
     with open(template_file, "r") as read_handle:
@@ -59,29 +61,25 @@ def add_weather_client(root_path, api_type, key, uid,temp_offset, reinstall=Fals
         with open(target_path, "w") as write_handle:
             write_handle.write(content)
         logging.info(
-            f'Wrote {target_path} weather client file. We will have a temperature offset of {temp_offset}'
+            f"Wrote {target_path} weather client file. We will have a temperature offset of {temp_offset}"
         )
     # add the weather DLL
     plugin_src_path = join(weather_path, "rf2WeatherPlugin.dll")
-    plugin_target_path = join(root_path, "server", "Bin64", "Plugins", "rf2WeatherPlugin.dll")
-    copy(plugin_src_path, plugin_target_path)
-    logging.info(
-        f'Added weather plugin file to {plugin_target_path}'
+    plugin_target_path = join(
+        root_path, "server", "Bin64", "Plugins", "rf2WeatherPlugin.dll"
     )
+    copy(plugin_src_path, plugin_target_path)
+    logging.info(f"Added weather plugin file to {plugin_target_path}")
     # add the dll to the custom variables json file
-    custom_variables_file = join(root_path, "server", "userData", "player", "CustomPluginVariables.JSON")
+    custom_variables_file = join(
+        root_path, "server", "userData", "player", "CustomPluginVariables.JSON"
+    )
     json = load(open(custom_variables_file, "r"))
-    json["rf2WeatherPlugin.dll"] = {
-        " Enabled": 1, 
-        "LOG": 0, 
-        "UID": int(uid)
-    }
+    json["rf2WeatherPlugin.dll"] = {" Enabled": 1, "LOG": 0, "UID": int(uid)}
     new_content = dumps(json)
     with open(custom_variables_file, "w") as file:
         file.write(new_content)
-    logging.info(
-        f'Added weather plugin file to {custom_variables_file}'
-    )
+    logging.info(f"Added weather plugin file to {custom_variables_file}")
 
 
 def generate_veh_templates(target_path: str, veh_templates: list, component_info: dict):
@@ -206,18 +204,107 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
                     file.write(result)
 
 
+def get_mod_encryption(root_path: str, mod_name: str, type: str) -> dict:
+    content_needles = {
+        "Vehicles": ["*.json", "*.ini", "*.veh"],
+        "Locations": ["*.gdb", "*.ini", "*.wet", "*.tdf", "*.json"],
+    }
+    component_path = join(root_path, "server", "Installed", type, mod_name)
+    component_versions = listdir(component_path)
+    official_mods_result = {}
+    for version in component_versions:
+        mod_mgr = join(root_path, "server", "Bin64", "ModMgr.exe")
+        version_path = join(component_path, version)
+        version_files = listdir(version_path)
+        for version_file in version_files:
+            if ".mas" in version_file.lower():  # attempt to list mas file content
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    for needle in content_needles["Vehicles"]:
+                        full_version_file_path = join(version_path, version_file)
+                        cmd_line = '{} -x"{}" "{}" -o{}'.format(
+                            mod_mgr, full_version_file_path, needle, tmpdirname
+                        )
+                        subprocess.getstatusoutput(cmd_line)
+
+                    files = listdir(tmpdirname)
+                    if version not in official_mods_result:
+                        official_mods_result[version] = {}
+                    official_mods_result[version][version_file] = len(files) != 0
+                    if len(files) == 0:
+                        logging.warn(
+                            f"From the file {version_file} no files could be extracted"
+                        )
+    logging.info(f"The mod {mod_name} has following structure")
+    results = {}
+    for version, files in official_mods_result.items():
+        has_open_mod = True
+        for file_name, open_flag in files.items():
+            if not open_flag:
+                logging.info(
+                    f"Version {version} has at least one encrypted mod: {file_name}"
+                )
+                has_open_mod = False
+                break
+        if has_open_mod:
+            logging.info(f"Version {version} has at least one open mod")
+        results[version] = has_open_mod
+    return results
+
+
+def is_official_mod(
+    root_path: str,
+    mod_name: str,
+    type: str,
+    force_version_ignore_encryption: bool = False,
+) -> bool:
+    results = get_mod_encryption(root_path, mod_name, type)
+    has_base_version = len(results) == 2
+    if not has_base_version:
+        logging.info(
+            "The mod has only one version, skipping check for official mod structure"
+        )
+        return False
+    if not force_version_ignore_encryption:
+        if not list(results.values())[0] and list(results.values())[1]:
+            logging.info(
+                "The mod has multiple versions, the first one is encrypted, the second is not. This is considered an official mod scheme."
+            )
+            return True
+    else:
+        if has_base_version:
+            logging.info(
+                "The mod has two versions, skipping check encryption as user requested"
+            )
+            return True
+    logging.info(
+        "The mod has multiple versions, but the encryption is not as expected. Might be third party."
+    )
+    return False
+
+
 def deploy_server(
     server_config: dict, rfm_contents: str, grip_data, onStateChange, status_hooks
 ) -> bool:
     root_path = server_config["server"]["root_path"]
     log_path = join(root_path, "reciever.log")
-    with open(log_path, 'w'):
+    with open(log_path, "w"):
         pass
     logging.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
     suffix = server_config["mod"]["suffix"]
-    ignore_fingerprints = "ignore_fingerprints" in server_config["mod"] and server_config["mod"]["ignore_fingerprints"]
+    ignore_fingerprints = (
+        "ignore_fingerprints" in server_config["mod"]
+        and server_config["mod"]["ignore_fingerprints"]
+    )
+    force_versions = (
+        "force_versions" in server_config["mod"]
+        and server_config["mod"]["force_versions"] > 0
+    )
+    force_version_ignore_encryption = (
+        "force_versions" in server_config["mod"]
+        and server_config["mod"]["force_versions"] == 2
+    )
     global VERSION_SUFFIX
     if suffix:
         VERSION_SUFFIX = suffix
@@ -267,7 +354,6 @@ def deploy_server(
         if id not in all_steam_ids and "-" not in str(id):
             all_steam_ids.append(id)
 
-
     for workshop_id, track in tracks.items():
         id = track["component"]["steam_id"]
         base_id = track["component"]["base_steam_id"]
@@ -281,9 +367,7 @@ def deploy_server(
             all_steam_ids.append(id)
 
     logging.info(
-        "We seen {} different steam id's in this deployment.".format(
-            len(all_steam_ids)
-        )
+        "We seen {} different steam id's in this deployment.".format(len(all_steam_ids))
     )
 
     for id in all_steam_ids:
@@ -294,21 +378,25 @@ def deploy_server(
             run_steamcmd(server_config, "add", id)
 
     # generate fingerprints
-    
+
     apx_origin_path = join(root_path, "reciever", "mod.apx.json")
     path = join(root_path, "reciever", "mod.json")
     # for this fingerprint, we will use the path (new file, but without version numbers)
     if not ignore_fingerprints:
-        fingerprints = get_fingerprints(event_config, server_config,  root_path)
-        
+        fingerprints = get_fingerprints(event_config, server_config, root_path)
+
         fingerprint_path = join(root_path, "reciever", "fingerprint.json")
         if exists(fingerprint_path):
             old_file = load(open(fingerprint_path, "r"))
             if old_file == fingerprints:
-                logging.warning(f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}")
+                logging.warning(
+                    f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}"
+                )
                 raise Exception("No mod files changed, aborted deployment.")
             else:
-                logging.info("Continuing as planned. Mod content and/ or updates changed.")
+                logging.info(
+                    "Continuing as planned. Mod content and/ or updates changed."
+                )
     else:
         logging.info("User choosed to ignore fingerprints.")
 
@@ -351,19 +439,43 @@ def deploy_server(
             logging.info(
                 f"The provided workshop id {raw_id} is suffixed. Removed suffix. Using {workshop_id} as the ID"
             )
-        if int(vehicle["component"]["base_steam_id"])  > 0:
-            logging.info(f"The item is based on another item. Demanding installation of base mod.")
-            onStateChange("Installing base workshop item", vehicle["component"]["base_steam_id"], status_hooks)
-            #run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
-            install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)    
+        if int(vehicle["component"]["base_steam_id"]) > 0:
+            logging.info(
+                f"The item is based on another item. Demanding installation of base mod."
+            )
+            onStateChange(
+                "Installing base workshop item",
+                vehicle["component"]["base_steam_id"],
+                status_hooks,
+            )
+            # run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
+            install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
-            #run_steamcmd(server_config, "add", workshop_id)
+            # run_steamcmd(server_config, "add", workshop_id)
         component_info = vehicle["component"]
         update = component_info["update"]
         official = component_info["official"]
-
+        install_mod(server_config, int(workshop_id), component_info["name"])
+        official_check = force_versions and is_official_mod(
+            root_path,
+            component_info["name"],
+            "Vehicles",
+            force_version_ignore_encryption,
+        )
+        if not official and official_check:
+            logging.warning(
+                "The check for official versioning scheme for mod {} showed that this might be official content, but the user did not flag it as such.".format(
+                    component_info["name"]
+                )
+            )
+            official = True
+            logging.warning(
+                "Flagged {} as official as force_versions is set.".format(
+                    component_info["name"]
+                )
+            )
         if update and official:
             logging.info(
                 "Requested update on top of component {} which is marked as official content. Selecting latest-even version".format(
@@ -371,8 +483,6 @@ def deploy_server(
                 )
             )
             component_info["version"] = "latest-even"
-
-        install_mod(server_config, int(workshop_id), component_info["name"])
         onStateChange("Installing vehicle", component_info["name"], status_hooks)
 
         if component_info["update"]:
@@ -407,21 +517,46 @@ def deploy_server(
 
     for key, track in tracks.items():
         workshop_id = str(track["component"]["steam_id"])
-        if int(track["component"]["base_steam_id"])  > 0:
-            logging.info(f"The item is based on another item. Demanding installation of base mod.")
-            onStateChange("Installing base workshop item", track["component"]["base_steam_id"], status_hooks)
-            #run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
-            install_mod(server_config, int(track["component"]["base_steam_id"]), None)  
+        if int(track["component"]["base_steam_id"]) > 0:
+            logging.info(
+                f"The item is based on another item. Demanding installation of base mod."
+            )
+            onStateChange(
+                "Installing base workshop item",
+                track["component"]["base_steam_id"],
+                status_hooks,
+            )
+            # run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
+            install_mod(server_config, int(track["component"]["base_steam_id"]), None)
         if int(workshop_id) > 0:
             # if the workshop id is present, attempt install
             onStateChange("Installing workshop item", workshop_id, status_hooks)
-            #run_steamcmd(server_config, "add", workshop_id)
+            # run_steamcmd(server_config, "add", workshop_id)
 
         onStateChange("Installing track", track["component"]["name"], status_hooks)
+
         install_mod(server_config, int(workshop_id), track["component"]["name"])
+        official_check = force_versions and is_official_mod(
+            root_path,
+            track["component"]["name"],
+            "Locations",
+            force_version_ignore_encryption,
+        )
+        official = track["component"]["official"]
+        if not official and official_check:
+            logging.warning(
+                "The check for official versioning scheme for mod {} showed that this might be official content, but the user did not flag it as such.".format(
+                    track["component"]["name"]
+                )
+            )
+            official = True
+            logging.warning(
+                "Flagged {} as official as force_versions is set.".format(
+                    track["component"]["name"]
+                )
+            )
         component_info = track["component"]
         update = component_info["update"]
-        official = component_info["official"]
 
         if update and official:
             logging.info(
@@ -436,20 +571,40 @@ def deploy_server(
             component_path = join(build_path, component_info["name"])
             files_in_component_path = listdir(component_path)
             if (
-                len(list(filter(lambda x: x.lower().endswith(".mas"), files_in_component_path)))  > 0
+                len(
+                    list(
+                        filter(
+                            lambda x: x.lower().endswith(".mas"),
+                            files_in_component_path,
+                        )
+                    )
+                )
+                > 0
             ):
-                logging.info("The component build path contains prebuild MAS files. We will pick them up instead of generating own ones")
-                provided_mas_paths = list(filter(lambda x: x.lower().endswith(".mas"), files_in_component_path))
+                logging.info(
+                    "The component build path contains prebuild MAS files. We will pick them up instead of generating own ones"
+                )
+                provided_mas_paths = list(
+                    filter(
+                        lambda x: x.lower().endswith(".mas"), files_in_component_path
+                    )
+                )
                 modmgr_path = join(root_path, "server", "Bin64\\ModMgr.exe")
                 for mas_file in provided_mas_paths:
                     full_mas_path = join(component_path, mas_file)
                     # extract the mas file
-                    logging.info(f"Attempting to extract files of {full_mas_path} into {component_path}")         
+                    logging.info(
+                        f"Attempting to extract files of {full_mas_path} into {component_path}"
+                    )
                     cmd_line = '{} -x"{}" "*.*" -o{}'.format(
                         modmgr_path, full_mas_path, component_path
                     )
                     subprocess.check_output(cmd_line)
-                    logging.info("Found {} files in {}".format(len(listdir(component_path)) -1, component_path))   
+                    logging.info(
+                        "Found {} files in {}".format(
+                            len(listdir(component_path)) - 1, component_path
+                        )
+                    )
                     # remove the mas file as it serves no purpose anymore
                     unlink(full_mas_path)
             create_mas(server_config, component_info, True, False)
@@ -666,16 +821,19 @@ def deploy_server(
     onStateChange("Deployment finished successfully", None, status_hooks)
     return True
 
+
 def get_fingerprints(event_config: dict, server_config: dict, root_path: str):
     fingerprint_file = {}
     for _, vehicle in event_config["cars"].items():
         steam_id = vehicle["component"]["steam_id"]
         base_steam_id = vehicle["component"]["base_steam_id"]
-        component_name  = vehicle["component"]["name"]
+        component_name = vehicle["component"]["name"]
         # find the mod file of this mod
         base_mod_fingerprints = None
         if base_steam_id != 0:
-            base_mod_fingerprints = get_mod_fingerprints(server_config, base_steam_id, None) # a base mod cannot be a file based item
+            base_mod_fingerprints = get_mod_fingerprints(
+                server_config, base_steam_id, None
+            )  # a base mod cannot be a file based item
             fingerprint_file[str(base_steam_id)] = base_mod_fingerprints
         mod_fingerprints = get_mod_fingerprints(server_config, steam_id, component_name)
         fingerprint_file[str(steam_id)] = mod_fingerprints
@@ -684,17 +842,18 @@ def get_fingerprints(event_config: dict, server_config: dict, root_path: str):
         if vehicle["component"]["update"]:
             build_path = join(root_path, "build", component_name)
             if exists(build_path):
-                fingerprint_file[f"{steam_id}_update"] =  folder_fingerprints(build_path)
-
+                fingerprint_file[f"{steam_id}_update"] = folder_fingerprints(build_path)
 
     for _, track in event_config["track"].items():
         steam_id = track["component"]["steam_id"]
         base_steam_id = track["component"]["base_steam_id"]
-        component_name  = track["component"]["name"]
+        component_name = track["component"]["name"]
         # find the mod file of this mod
         base_mod_fingerprints = None
         if base_steam_id != 0:
-            base_mod_fingerprints = get_mod_fingerprints(server_config, base_steam_id, None) # a base mod cannot be a file based item
+            base_mod_fingerprints = get_mod_fingerprints(
+                server_config, base_steam_id, None
+            )  # a base mod cannot be a file based item
             fingerprint_file[str(base_steam_id)] = base_mod_fingerprints
         mod_fingerprints = get_mod_fingerprints(server_config, steam_id, component_name)
         fingerprint_file[str(steam_id)] = mod_fingerprints
@@ -703,34 +862,40 @@ def get_fingerprints(event_config: dict, server_config: dict, root_path: str):
         if track["component"]["update"]:
             build_path = join(root_path, "build", component_name)
             if exists(build_path):
-                fingerprint_file[f"{steam_id}_update"] =  folder_fingerprints(build_path)
+                fingerprint_file[f"{steam_id}_update"] = folder_fingerprints(build_path)
     return fingerprint_file
 
-def get_mod_fingerprints(server_config:dict, steam_id: int, component_name: str):
+
+def get_mod_fingerprints(server_config: dict, steam_id: int, component_name: str):
     steam_root = get_steamcmd_path(server_config)
-    source_path = join(
-        steam_root, "steamapps\\workshop\\content\\365960\\", str(steam_id)
-    )  if steam_id > 0 else find_source_path(root_path, component_name)
+    source_path = (
+        join(steam_root, "steamapps\\workshop\\content\\365960\\", str(steam_id))
+        if steam_id > 0
+        else find_source_path(root_path, component_name)
+    )
     fingerprints = folder_fingerprints(source_path)
     return fingerprints
+
 
 def folder_fingerprints(source_path: str):
     mod_files = listdir(source_path)
     fingerprints = {}
     for mod_file in mod_files:
-        if ".veh" not in mod_file: # we are ignoring generated veh files here.
+        if ".veh" not in mod_file:  # we are ignoring generated veh files here.
             full_path = join(source_path, mod_file)
             fingerprints[mod_file] = checksum(full_path)
     return fingerprints
 
+
 def checksum(filename):
-    h  = hashlib.sha1()
-    b  = bytearray(128*1024)
+    h = hashlib.sha1()
+    b = bytearray(128 * 1024)
     mv = memoryview(b)
-    with open(filename, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
+    with open(filename, "rb", buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
     return h.hexdigest()
+
 
 def update_weather(root_path: str, sessions: list, mod_name, layout):
     properties = find_location_properties(root_path, mod_name, layout)
@@ -1049,7 +1214,9 @@ def build_mod(
             possible_values = layout.keys()
             for possible_value in possible_values:
                 if layout[possible_value] is not None:
-                    enable_flag = "1" if track["layout"] == layout[possible_value] else 0
+                    enable_flag = (
+                        "1" if track["layout"] == layout[possible_value] else 0
+                    )
                     logging.info(f"Found data {possible_value}, {layout}, {track}")
                     logging.info(
                         "Checking if layout key "
