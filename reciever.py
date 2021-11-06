@@ -4,7 +4,13 @@ from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
 from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
-from rf2.deploy import deploy_server, VERSION_SUFFIX, update_weather, add_weather_client
+from rf2.deploy import (
+    deploy_server,
+    VERSION_SUFFIX,
+    update_weather,
+    add_weather_client,
+    update_server_only,
+)
 from rf2.setup import install_server
 from rf2.util import create_config, get_server_port, get_public_sim_server_port
 from os.path import join, exists, basename
@@ -24,6 +30,7 @@ from time import sleep
 import win32net
 from os import getlogin
 from re import match
+
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
 from rf2.events.onCarCountChange import onCarCountChange
@@ -284,7 +291,25 @@ def weather_update():
     return json_response({"is_ok": False})
 
 
+@app.route("/update", methods=["GET"])
+@check_api_key
+def update_server():
+    status_hooks = (
+        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
+    )
+
+    server_config = get_server_config()
+    branch = server_config["mod"]["branch"]
+    onStateChange(
+        f"Updating to latest version for branch {branch} on Steam.", None, status_hooks
+    )
+    update_server_only(server_config)
+    onStateChange(f"Update finished (branch: {branch})", None, status_hooks)
+    return json_response({"is_ok": True})
+
+
 @app.route("/deploy", methods=["POST"])
+@check_api_key
 def deploy_server_config():
     # only apply lock protection if the server was actually deployed once
     if (
@@ -354,13 +379,21 @@ def deploy_server_config():
 
         if server_config["mod"]["real_weather"]:
             onStateChange("Injecting weather plugin", None, status_hooks)
-            add_weather_client(server_config["server"]["root_path"], server_config["mod"]["weather_api"], server_config["mod"]["weather_key"], server_config["mod"]["weather_uid"],server_config["mod"]["temp_offset"], False)
+            add_weather_client(
+                server_config["server"]["root_path"],
+                server_config["mod"]["weather_api"],
+                server_config["mod"]["weather_key"],
+                server_config["mod"]["weather_uid"],
+                server_config["mod"]["temp_offset"],
+                False,
+            )
         onStateChange("Deployment successfull", None, status_hooks)
     except Exception as e:
         import traceback
+
         print(traceback.print_exc())
         logger.info(str(e))
-        
+
         onStateChange(f"Deployment failed: {e}", None, status_hooks)
     finally:
         soft_lock_toggle()
@@ -464,22 +497,31 @@ def install_plugins():
         plugin_path = join(server_bin_path, plugin)
         if ".dll" in plugin_path:
             if real_weather and "rf2WeatherPlugin" in plugin_path:
-                info("NOT Removing {} as this is needed by the real weather injection.".format(plugin_path))
-            else:   
+                info(
+                    "NOT Removing {} as this is needed by the real weather injection.".format(
+                        plugin_path
+                    )
+                )
+            else:
                 info("Removing {}".format(plugin_path))
                 unlink(plugin_path)
 
     for file, iostream in request.files.items():
         base_name = basename(file)
         if base_name in paths:
-            info("The plugin file {} has a different path. We will use this path: {}".format(base_name, paths[base_name]))
-            target_path = join(config["server"]["root_path"], "server", paths[base_name])
+            info(
+                "The plugin file {} has a different path. We will use this path: {}".format(
+                    base_name, paths[base_name]
+                )
+            )
+            target_path = join(
+                config["server"]["root_path"], "server", paths[base_name]
+            )
             if not exists(target_path):
                 Path(target_path).mkdir(parents=True, exist_ok=True)
                 info(f"Created path {target_path} as it was not existing")
             else:
                 info(f"Path {target_path} exists and will not be cleaned")
-
 
             got = iostream.save(join(target_path, base_name))
             info(
@@ -500,13 +542,15 @@ def install_plugins():
             plugin_config[plugin][" Enabled"] = 1
             info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
         else:
-            info(f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON")
+            info(
+                f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON"
+            )
     if real_weather:
-         plugin_config["rf2WeatherPlugin.dll"] = {
-             " Enabled": 1,
-             "LOG": 0,
-             "UID": config["mod"]["weather_uid"]
-         }
+        plugin_config["rf2WeatherPlugin.dll"] = {
+            " Enabled": 1,
+            "LOG": 0,
+            "UID": config["mod"]["weather_uid"],
+        }
     with open(plugin_config_path, "w") as file:
         file.write(dumps(plugin_config))
     return json_response({"is_ok": True})

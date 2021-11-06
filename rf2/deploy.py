@@ -1576,6 +1576,8 @@ def restore_vanilla(server_config: dict) -> bool:
     else:
         logging.info("Skipping update of the server itself.")
 
+def update_server_only(server_config: dict):
+    run_steamcmd(server_config, "update")
 
 def create_mas(
     server_config: dict, component_info: dict, add_version_suffix=False, is_vehicle=True
