@@ -392,6 +392,8 @@ def deploy_server_config():
         import traceback
 
         print(traceback.print_exc())
+
+        logger.info(traceback.print_exc())
         logger.info(str(e))
 
         onStateChange(f"Deployment failed: {e}", None, status_hooks)
