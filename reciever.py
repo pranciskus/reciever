@@ -393,8 +393,8 @@ def deploy_server_config():
 
         print(traceback.print_exc())
 
-        logger.info(traceback.print_exc())
-        logger.info(str(e))
+        logger.fatal(traceback.print_exc())
+        logger.fatal(str(e))
 
         onStateChange(f"Deployment failed: {e}", None, status_hooks)
     finally:
