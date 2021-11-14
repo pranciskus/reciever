@@ -439,10 +439,12 @@ def deploy_server(
             logging.info(
                 f"The provided workshop id {raw_id} is suffixed. Removed suffix. Using {workshop_id} as the ID"
             )
-        if int(vehicle["component"]["base_steam_id"]) > 0:
+        if int(vehicle["component"]["base_steam_id"]) != 0:
             logging.info(
                 f"The item is based on another item. Demanding installation of base mod."
             )
+            if int(vehicle["component"]["base_steam_id"]) < 0:
+                logging.info(f"The base mod is a local only file based item")
             onStateChange(
                 "Installing base workshop item",
                 vehicle["component"]["base_steam_id"],
@@ -450,10 +452,7 @@ def deploy_server(
             )
             # run_steamcmd(server_config, "add", vehicle["component"]["base_steam_id"])
             install_mod(server_config, int(vehicle["component"]["base_steam_id"]), None)
-        if int(workshop_id) > 0:
-            # if the workshop id is present, attempt install
-            onStateChange("Installing workshop item", workshop_id, status_hooks)
-            # run_steamcmd(server_config, "add", workshop_id)
+        onStateChange("Installing workshop item", workshop_id, status_hooks)
         component_info = vehicle["component"]
         update = component_info["update"]
         official = component_info["official"]
@@ -517,7 +516,7 @@ def deploy_server(
 
     for key, track in tracks.items():
         workshop_id = str(track["component"]["steam_id"])
-        if int(track["component"]["base_steam_id"]) > 0:
+        if int(track["component"]["base_steam_id"]) != 0:
             logging.info(
                 f"The item is based on another item. Demanding installation of base mod."
             )
@@ -526,12 +525,7 @@ def deploy_server(
                 track["component"]["base_steam_id"],
                 status_hooks,
             )
-            # run_steamcmd(server_config, "add", track["component"]["base_steam_id"])
             install_mod(server_config, int(track["component"]["base_steam_id"]), None)
-        if int(workshop_id) > 0:
-            # if the workshop id is present, attempt install
-            onStateChange("Installing workshop item", workshop_id, status_hooks)
-            # run_steamcmd(server_config, "add", workshop_id)
 
         onStateChange("Installing track", track["component"]["name"], status_hooks)
 
@@ -868,6 +862,7 @@ def get_fingerprints(event_config: dict, server_config: dict, root_path: str):
 
 def get_mod_fingerprints(server_config: dict, steam_id: int, component_name: str):
     steam_root = get_steamcmd_path(server_config)
+    root_path = server_config["server"]["root_path"]
     source_path = (
         join(steam_root, "steamapps\\workshop\\content\\365960\\", str(steam_id))
         if steam_id > 0
@@ -1576,8 +1571,10 @@ def restore_vanilla(server_config: dict) -> bool:
     else:
         logging.info("Skipping update of the server itself.")
 
+
 def update_server_only(server_config: dict):
     run_steamcmd(server_config, "update")
+
 
 def create_mas(
     server_config: dict, component_info: dict, add_version_suffix=False, is_vehicle=True
