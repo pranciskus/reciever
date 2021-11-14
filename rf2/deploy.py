@@ -556,7 +556,7 @@ def deploy_server(
             )
             official = True
             logging.warning(
-                "Flagged {} as official as force_versions is set.".format(
+                "Flagged {} as official version scheme as force_versions is set.".format(
                     component_info["name"]
                 )
             )
@@ -577,12 +577,34 @@ def deploy_server(
                 ),
                 component_info["version"] == "latest",
             )
-            files = extract_veh_files(root_path, component_info["name"], version)
+            logging.info("We will use {} as the base version".format(version))
+            # the most recent version most likely contains the liveries, so we will use a separate version for extract and a different for the base mod
+            version_for_extraction = get_latest_version(
+                join(
+                    root_path, "server", "Installed", "Vehicles", component_info["name"]
+                ),
+                True,
+            )
+            logging.info(
+                "We will use {} as the version to find VEH templates, if needed".format(
+                    version_for_extraction
+                )
+            )
+            files = extract_veh_files(
+                root_path, component_info["name"], version_for_extraction
+            )  # the version is
             build_path = join(root_path, "build")
             component_path = join(build_path, component_info["name"])
             files_in_component_path = listdir(component_path)
             if (
-                len(list(filter(lambda x: x.endswith(".veh"), files_in_component_path)))
+                len(
+                    list(
+                        filter(
+                            lambda x: x.lower().endswith(".veh"),
+                            files_in_component_path,
+                        )
+                    )
+                )
                 == 0
             ):
                 logging.info(
