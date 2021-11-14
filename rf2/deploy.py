@@ -577,6 +577,21 @@ def deploy_server(
                 ),
                 component_info["version"] == "latest",
             )
+            if server_config["mod"]["include_stock_skins"]:
+                version = get_latest_version(
+                    join(
+                        root_path,
+                        "server",
+                        "Installed",
+                        "Vehicles",
+                        component_info["name"],
+                    ),
+                    True,
+                )
+                component_info["version"] = "latest"
+                logging.warn(
+                    f"User wants to include stock skins with own liveries. Using version {version} as the base version This will create an update on the update, causing to overlap other mods. THIS WILL CAUSE CONNECTION ISSUES!!!!!!!!!!"
+                )
             logging.info("We will use {} as the base version".format(version))
             # the most recent version most likely contains the liveries, so we will use a separate version for extract and a different for the base mod
             version_for_extraction = get_latest_version(
@@ -1285,7 +1300,7 @@ def build_mod(
             base_version = version.replace(VERSION_SUFFIX, "")
 
             logging.info(
-                f"The event demands to include stock skins from {name} {base_version}"
+                f"The event demands to include stock skins from {name}. We will use {base_version} to find the veh files."
             )
             entries = get_entries_from_mod(root_path, name, base_version)
             for entry in entries:
