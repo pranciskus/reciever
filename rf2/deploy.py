@@ -19,6 +19,76 @@ import tempfile
 
 VERSION_SUFFIX = ".9apx"
 WEATHERCLIENT_URL = "https://forum.studio-397.com/index.php?attachments/rf2weatherpluginv1-14a-zip.40498/"
+OFFICIAL_CONTENT_IDS = [
+    1097229192,
+    1097230662,
+    1097232188,
+    1097232656,
+    1097232726,
+    1214555461,
+    1214556324,
+    1344542862,
+    1344546612,
+    1344546674,
+    1344546766,
+    1344546801,
+    1411387394,
+    1411394979,
+    1411402133,
+    1411402158,
+    1411402194,
+    1453463528,
+    1558324776,
+    1596821875,
+    1596822133,
+    1596822183,
+    1596822230,
+    1596822282,
+    1694798655,
+    1694798757,
+    1694798796,
+    1694798829,
+    1694798885,
+    1694798930,
+    1694798956,
+    1694798990,
+    1694799035,
+    1694799073,
+    1737056822,
+    1737056846,
+    1737056865,
+    1737056888,
+    1737056920,
+    1872951506,
+    1923574682,
+    1938469778,
+    1938469806,
+    1938469836,
+    1938469875,
+    2103827595,
+    2103827662,
+    2103827690,
+    2113612677,
+    1280256705,
+    1743486500,
+    2103827617,
+    2271976749,
+    2291867462,
+    2331283978,
+    2331284105,
+    2331284205,
+    2399198802,
+    2399198882,
+    2523945382,
+    2523945426,
+    2531552597,
+    2531552642,
+    2531552688,
+    2531552731,
+    2531552785,
+    2531552818,
+    2593493502,
+]
 
 
 def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=False):
@@ -372,6 +442,21 @@ def deploy_server(
 
     for id in all_steam_ids:
         if id > 0:
+            # check if the id is one of S397 paid content
+            # File based items not included in this check.
+            if id in OFFICIAL_CONTENT_IDS:
+                logging.info(
+                    f"The item {id} is official content and requires an existing key"
+                )
+                key_path = join(root_path, "server", "UserData", "ServerUnlock.bin")
+                if not exists(key_path):
+                    raise Exception(
+                        "Please add a keyfile to use paid content. See https://wiki.apx.chmr.eu/doku.php?id=troubleshooting#an_apx-created_complains_about_a_missing_key"
+                    )
+            else:
+                logging.info(
+                    f"The item {id} is not official content, skipping key check."
+                )
             logging.info(
                 f"Installing workshop item {id} before mod installation to make sure fingerprints can be generated"
             )
