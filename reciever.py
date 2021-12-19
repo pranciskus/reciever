@@ -20,14 +20,13 @@ from json import loads, dumps
 from time import sleep, time
 from math import ceil
 from shutil import copytree, copyfile
-from sys import exit, argv
+from sys import exit, argv, platform
 from pathlib import Path
 import hashlib
 from logging import error, handlers, Formatter, getLogger, DEBUG, INFO, info
 from waitress import serve
 from threading import Thread, Lock
 from time import sleep
-import win32net
 from os import getlogin
 from re import match
 
@@ -106,7 +105,7 @@ def read_mod_config() -> dict:
 
 def read_webserver_config() -> dict:
     server_config_path = str(Path(__file__).absolute()).replace(
-        "reciever.py", "server.json"
+        "reciever.py", "server.json" if platform != "linux" else "server_linux.json"
     )
     if not exists(server_config_path):
         raise Exception("Server config was not found")
@@ -761,19 +760,23 @@ def after_request_func(response):
 
 if __name__ == "__main__":
     # check for correct user
-    groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
-    assumed_admin = False
-    for group in groups:
-        # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
-        if "admin" in group.lower():
-            assumed_admin = True
-            break
-    if assumed_admin and "--admin" not in argv:
-        raise Exception(
-            "The reciever cannot be run as administrator. Use a dedicated user"
-        )
+    if platform == "win32":
+        import win32net
+        groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
+        assumed_admin = False
+        for group in groups:
+            # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
+            if "admin" in group.lower():
+                assumed_admin = True
+                break
+        if assumed_admin and "--admin" not in argv:
+            raise Exception(
+                "The reciever cannot be run as administrator. Use a dedicated user"
+            )
+    # debug only: add a new server.json per argv
+
     server_config_path = str(Path(__file__).absolute()).replace(
-        "reciever.py", "server.json"
+        "reciever.py", "server.json" if platform != "linux" else "server_linux.json"
     )
     if not exists(server_config_path):
         print("{} is not present".format(server_config_path))

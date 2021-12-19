@@ -1,4 +1,3 @@
-from pywinauto import Desktop, WindowSpecification
 from os.path import join, exists, sep
 from os import getcwd, mkdir, pardir
 from time import sleep
@@ -10,18 +9,23 @@ import socket
 from pathlib import Path
 from requests import get
 from rf2.setup import install_server
-
+from sys import platform
 
 def get_main_window(server_config: dict):
     """
     Get the server main window
 
+    This is not  available on Linux.
+
     Args:
         server_config: The global configuration for this instance
 
     Returns:
-        A WindowSpecification containing the dialog window.
+        A Desktop containing the dialog window.
     """
+    if platform != "win32":
+        raise Exception("This feature is not supported on Linux")
+    from pywinauto import Desktop
     root_path = server_config["server"]["root_path"]
     server_root_path = join(root_path, "server") + "\\"
     dialog = Desktop(backend="win32").window(title=server_root_path)

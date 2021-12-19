@@ -8,12 +8,15 @@ from rf2.util import (
 from rf2.interaction import chat, do_action, Action
 from rf2.deploy import update_weather
 import logging
-from subprocess import Popen, STARTUPINFO, HIGH_PRIORITY_CLASS
 from string import ascii_uppercase, digits
 from random import choice
 from psutil import process_iter
 import tarfile
-
+from sys import platform
+if platform == "linux":
+    from rf2.wine import Popen
+else:
+    from subprocess import Popen
 
 def oneclick_start_server(server_config: dict, files: dict) -> bool:
     root_path = server_config["server"]["root_path"]
@@ -52,8 +55,11 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
             file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
             file.write("[TRACKS]\n")
         
-        
-        Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        if platform == "win32":
+            from subprocess import HIGH_PRIORITY_CLASS
+            Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
+        else:
+            Popen(server_binary_commandline)
         if server_config["mod"]["real_weather"]:
             # start the weather_client
             weather_client_root = join(server_config["server"]["root_path"], "weatherclient")
