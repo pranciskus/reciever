@@ -95,7 +95,7 @@ from logging.handlers import RotatingFileHandler
 logging.basicConfig(
     handlers=[RotatingFileHandler('reciever.log', maxBytes=100000, backupCount=10)],
     level=logging.INFO,
-    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s'
+    format='%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s'
 )
 
 logger = logging.getLogger(__name__)
@@ -288,7 +288,7 @@ def send_message():
     message = request.form.get("message")
 
     if not message:
-        raise RecieverError(f"Message not provided")
+        raise RecieverError("Message not provided")
     
     chat(get_server_config(), message)
     return json_response({"is_ok": True})
@@ -361,7 +361,7 @@ def deploy_server_config():
     rfm_contents = request.form.get("rfm_config")
     
     if not config_contents:
-        raise RecieverError(f"Config not provided")
+        raise RecieverError("Config not provided")
 
     server_config = get_server_config()
     release_file_path = join(

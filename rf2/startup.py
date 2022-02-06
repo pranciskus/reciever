@@ -28,7 +28,7 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
         server_binary_commandline = (
             server_binary_path
             + f' +path="{server_root_path}"'
-            + f"  +profile=player  +oneclick"
+            + "  +profile=player  +oneclick"
         )
 
         track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
