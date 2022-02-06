@@ -6,6 +6,8 @@ from subprocess import Popen
 from time import sleep
 import logging
 
+logger = logging.getLogger(__name__)
+
 STEAMCMD_URL = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
 
 
@@ -18,10 +20,10 @@ def install_server(server_config: dict) -> bool:
         new_root_path = dirname(dirname(dirname(root_path)))
         if exists(join(new_root_path, "steamcmd", "steamcmd.exe")):
             steam_root = join(new_root_path, "steamcmd")
-            logging.info(
+            logger.info(
                 "We will skip the download of the steamcmd command set as there is a global steamcmd apparently."
             )
-            logging.info(f"Injecting {steam_root} as global steam path root")
+            logger.info(f"Injecting {steam_root} as global steam path root")
             server_config["mod"]["global_steam_path"] = steam_root
             install_steam = False
 

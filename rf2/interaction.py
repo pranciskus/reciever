@@ -2,7 +2,9 @@ from rf2.util import get_main_window, get_server_port
 from enum import Enum
 from time import sleep
 from requests import post
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Action(Enum):
     RESTARTWEEKEND = "<< Restart Weekend"
@@ -29,7 +31,7 @@ def chat(server_config: dict, message: str):
     try:
         got = post(target_url, data=message)
     except Exception as e:
-        print(e)
+        logger.error(e, exc_info=1)
 
 
 def do_action(server_config: dict, action: Action):

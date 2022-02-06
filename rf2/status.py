@@ -10,6 +10,7 @@ from os import listdir
 from time import time
 from time import time
 
+logger = logging.getLogger(__name__)
 
 def get_server_mod(server_config: dict) -> dict:
     target_url = "http://localhost:{}".format(get_server_port(server_config))
@@ -113,8 +114,7 @@ def get_server_status(server_config: dict) -> dict:
     except Exception as e:
         import traceback
 
-        print(traceback.print_exc())
-        logging.error(e)
+        logger.error(e, exc_info=1)
         result = None
 
     if not result:

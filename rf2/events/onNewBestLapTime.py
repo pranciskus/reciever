@@ -1,7 +1,11 @@
+from rf2.events import get_prop_map
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 overall_best_lap = None
 overall_best_time = None
-from rf2.events import get_prop_map
-
 
 def onNewBestLapTime(oldStatus, newStatus, all_hooks):
     global overall_best_lap
@@ -46,7 +50,5 @@ def onNewPersonalBest(oldStatus, newStatus, all_hooks):
                 if old_best > new_best or new_best > 0 and old_best < 0:
                     for hook in all_hooks:
                         hook(driver, old_best, new_best, newStatus)
-        except:
-            import traceback
-
-            print(traceback.print_exc())
+        except Exception as e:
+            logger.error(e, exc_info=1)

@@ -21,6 +21,9 @@ from hooks.basehooks import (
     on_driver_swap,
     on_state_change,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 HOOKS = {}
 
@@ -29,7 +32,7 @@ def register(event, hooks, func):
     if event not in hooks:
         hooks[event] = []
     hooks[event].append(func)
-    print("Registered hook {} for event {}".format(func.__name__, event))
+    logger.info("Registered hook {} for event {}".format(func.__name__, event))
 
 
 register("onNewBestLapTime", HOOKS, best_lap)

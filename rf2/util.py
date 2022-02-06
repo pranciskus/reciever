@@ -10,6 +10,11 @@ from pathlib import Path
 from requests import get
 from rf2.setup import install_server
 from sys import platform
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 def get_main_window(server_config: dict):
     """
@@ -113,12 +118,12 @@ def create_config():
     if exists(reciever_path):
         root_path = str(Path(reciever_path).parent.parent.absolute())
     while not exists(reciever_path):
-        print("The current working directory does not contain the files we expected")
-        print("We expect following folder structure")
-        print("\server")
-        print("\\reciever")
-        print("\steamcmd")
-        print("\\build")
+        logger.info("The current working directory does not contain the files we expected")
+        logger.info("We expect following folder structure")
+        logger.info("\server")
+        logger.info("\\reciever")
+        logger.info("\steamcmd")
+        logger.info("\\build")
         root_path = input("Name the correct directory which contains the folders: ")
         reciever_path = join(root_path, "reciever", "reciever.py")
 
@@ -135,9 +140,9 @@ def create_config():
         "debug": False,
         "redownload_steam": False,
     }
-    print("APX will use this configuration")  #
+    logger.info("APX will use this configuration")  #
     json_dump = dumps(config_blob, indent=4, sort_keys=True)
-    print(json_dump)
+    logger.info(json_dump)
     server_path = join(root_path, "reciever", "server.json")
     with open(server_path, "w") as file:
         file.write(json_dump)
@@ -149,20 +154,20 @@ def setup_environment(root_path):
     mod_path = join(root_path, "reciever", "mod.json")
     build_path = join(root_path, "build")
     steamcmd_path = join(root_path, "steamcmd")
-    server_path = join(root_path, "steamcmd")
+    # server_path = join(root_path, "steamcmd")
 
     # TODO: ad items folder
 
     if not exists(build_path):
-        print("Creating build path {}".format(build_path))
+        logger.info("Creating build path {}".format(build_path))
         mkdir(build_path)
 
     if not exists(steamcmd_path):
-        print("Creating steamcmd path {}".format(build_path))
+        logger.info("Creating steamcmd path {}".format(build_path))
         mkdir(steamcmd_path)
 
         with open(config_path, "r") as file:
             with open(mod_path, "r") as mod_file:
                 config = {"mod": loads(mod_file.read()), "server": loads(file.read())}
-                print(config)
+                logger.info(config)
                 install_server(config)

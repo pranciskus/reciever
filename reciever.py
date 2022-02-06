@@ -1,7 +1,6 @@
 from json import JSONDecodeError
-from flask import Flask, request, Request, abort, send_file, jsonify, render_template
+from flask import Flask, request, abort, send_file, jsonify
 from functools import wraps
-from werkzeug.exceptions import HTTPException
 from rf2.startup import stop_server, oneclick_start_server
 from rf2.status import get_server_status, get_server_mod
 from rf2.interaction import do_action, Action, kick_player, chat
@@ -18,19 +17,19 @@ from os.path import join, exists, basename
 from os import mkdir, unlink, listdir
 from shutil import rmtree, unpack_archive
 from json import loads, dumps
-from time import sleep, time
-from math import ceil
-from shutil import copytree, copyfile
+from time import sleep
+from shutil import copytree
 from sys import exit, argv, platform
 from pathlib import Path
-import hashlib
-from logging import error, handlers, Formatter, getLogger, DEBUG, INFO, info
 from waitress import serve
-from threading import Thread, Lock
+from threading import Thread
 from time import sleep
 from os import getlogin
 from re import match
-
+import tempfile
+import tarfile
+from requests import get
+from shutil import copyfileobj
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
 from rf2.events.onCarCountChange import onCarCountChange
@@ -91,13 +90,21 @@ RECIEVER_HOOK_EVENTS = [
 # load actual hooks
 import hooks
 import logging
+from logging.handlers import RotatingFileHandler
 
-logging.basicConfig(filename='reciever.log', level=logging.INFO, format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s')
+logging.basicConfig(
+    handlers=[RotatingFileHandler('reciever.log', maxBytes=100000, backupCount=10)],
+    level=logging.INFO,
+    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s'
+)
 
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+recieved_status = None
+last_status = None
+mod_content = None
 
 class RecieverError(Exception):
     status_code = 418
@@ -121,9 +128,6 @@ def handle_reciever_error(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
-
-
-recieved_status = None
 
 
 def read_mod_config() -> dict:
@@ -174,16 +178,7 @@ def check_api_key(f):
 
 
 def json_response(data) -> str:
-    result = jsonify(data)
-    return result
-
-
-def handle_error(e):
-    code = 500
-    print(e)
-    if isinstance(e, HTTPException):
-        code = e.code
-    return json_response({"error": str(e)}), code
+    return jsonify(data)
 
 
 @app.route("/oneclick_start_server", methods=["GET"])
@@ -195,16 +190,12 @@ def start_oneclick():
     got= oneclick_start_server(config, files)
 
     if not got:
-        raise Exception("The server could not be started")
+        raise RecieverError("The server could not be started")
     
     return json_response({"is_ok": got}), 200
 
 
-last_status = None
-mod_content = None
-from time import time
-
-
+# TODO: write to file last_status
 def poll_background_status(all_hooks):
     ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
     global mod_content
@@ -251,20 +242,19 @@ def poll_background_status(all_hooks):
         sleep(1)
 
 
+# TODO: read from file last_status
 @app.route("/status", methods=["GET"])
 def status():
     if last_status:
         last_status["mod_content"] = mod_content
-
-    app.logger.info(last_status)
-
-    return json_response(last_status), 200
+        return json_response(last_status), 200
+    return json_response({}), 200
 
 
 @app.route("/stop", methods=["GET"])
 @check_api_key
 def stop():
-    app.logger.info("/status")
+    # app.logger.info("/stop")
     return json_response({"is_ok": stop_server(get_server_config())}), 200
 
 
@@ -353,6 +343,9 @@ def update_server():
 @check_api_key
 def deploy_server_config():
     # only apply lock protection if the server was actually deployed once
+    status_hooks = (
+        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
+    )
     if (
         not never_deployed()
         and last_status is not None
@@ -361,10 +354,7 @@ def deploy_server_config():
         onStateChange(
             "Deployment aborted as the server is still running", None, status_hooks
         )
-        abort(403)
-    status_hooks = (
-        hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
-    )
+        raise RecieverError("Deployment aborted as the server is still running")
 
     onStateChange("Deployment starting", None, status_hooks)
     config_contents = request.form.get("config")
@@ -389,16 +379,14 @@ def deploy_server_config():
                 )
             )
     except Exception as e:
-        logging.error(e)
-        return json_response({"is_ok": False, "syntax_failed": False})
-    except JSONDecodeError as e:
-        logging.error(e)
-        return json_response({"is_ok": False, "syntax_failed": True})
+        logger.error(e)
+        raise RecieverError(str(e))
 
     soft_lock_toggle()
     onStateChange(
         "Locked installation to prevent double deployments", None, status_hooks
     )
+
     try:
         # grip conditions
         grip = {}
@@ -430,35 +418,29 @@ def deploy_server_config():
                 False,
             )
         onStateChange("Deployment successfull", None, status_hooks)
+    
+    # TODO: whats happening here? where response if OK?
     except Exception as e:
-        import traceback
 
-        print(traceback.print_exc())
-
-        logger.fatal(traceback.print_exc())
-        logger.fatal(str(e))
-
+        logger.fatal(e, exc_info=1)
         onStateChange(f"Deployment failed: {e}", None, status_hooks)
+    
     finally:
         soft_lock_toggle()
         event_hooks_to_run = (
             hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
         )
         onDeploy(None, None, event_hooks_to_run)  # call the hook
+    
     return json_response({"is_ok": False})
 
 
 @app.route("/process_results", methods=["GET"])
 def return_processed_results():
-    got = process_results()
-    return json_response(got)
-
-
-import tempfile
-import tarfile
-from requests import get
-from shutil import copyfileobj
-from flask import send_file
+    raise RecieverError("process_results() not implemented")
+    # TODO: no process_results function???
+    # got = process_results()
+    # return json_response(got)
 
 
 @app.route("/thumbs", methods=["GET"])
@@ -541,19 +523,19 @@ def install_plugins():
         plugin_path = join(server_bin_path, plugin)
         if ".dll" in plugin_path:
             if real_weather and "rf2WeatherPlugin" in plugin_path:
-                info(
+                app.logger.info(
                     "NOT Removing {} as this is needed by the real weather injection.".format(
                         plugin_path
                     )
                 )
             else:
-                info("Removing {}".format(plugin_path))
+                app.logger.info("Removing {}".format(plugin_path))
                 unlink(plugin_path)
 
     for file, iostream in request.files.items():
         base_name = basename(file)
         if base_name in paths:
-            info(
+            app.logger.info(
                 "The plugin file {} has a different path. We will use this path: {}".format(
                     base_name, paths[base_name]
                 )
@@ -563,19 +545,19 @@ def install_plugins():
             )
             if not exists(target_path):
                 Path(target_path).mkdir(parents=True, exist_ok=True)
-                info(f"Created path {target_path} as it was not existing")
+                app.logger.info(f"Created path {target_path} as it was not existing")
             else:
-                info(f"Path {target_path} exists and will not be cleaned")
+                app.logger.info(f"Path {target_path} exists and will not be cleaned")
 
             got = iostream.save(join(target_path, base_name))
-            info(
+            app.logger.info(
                 "Plugin file for {} injected into {}".format(
                     base_name, join(target_path, base_name)
                 )
             )
         else:
             got = iostream.save(join(server_bin_path, base_name))
-            info(
+            app.logger.info(
                 "Plugin file for {} injected into {}".format(
                     base_name, join(server_bin_path, base_name)
                 )
@@ -584,9 +566,9 @@ def install_plugins():
         if ".dll" in plugin.lower():
             plugin_config[plugin] = overwrite
             plugin_config[plugin][" Enabled"] = 1
-            info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
+            app.logger.info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
         else:
-            info(
+            app.logger.info(
                 f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON"
             )
     if real_weather:
@@ -820,34 +802,45 @@ if __name__ == "__main__":
             raise Exception(
                 "The reciever cannot be run as administrator. Use a dedicated user"
             )
+    
     # debug only: add a new server.json per argv
-
     server_config_path = str(Path(__file__).absolute()).replace(
         "reciever.py", "server.json" if platform != "linux" else "server_linux.json"
     )
+    
+    # TODO: ????
     if not exists(server_config_path):
-        print("{} is not present".format(server_config_path))
+        logger.error("{} is not present".format(server_config_path))
         create_config()
         exit(127)
+   
     webserver_config = read_webserver_config()
     debug = webserver_config["debug"]
 
+    logger.info(f"Server config: {webserver_config}")
+
     root_path = webserver_config["root_path"]
     reciever_path = join(root_path, "reciever")
+
+    manifests_source_path = join(root_path, "server", "Manifests")
+    installed_source_path = join(root_path, "server", "Installed")
 
     manifests_target_path = join(reciever_path, "templates", "Manifests")
     installed_target_path = join(reciever_path, "templates", "Installed")
 
     if not exists(manifests_target_path):
-        manifests_source_path = join(root_path, "server", "Manifests")
+        logger.info(f"Copying Manifests from: {manifests_source_path}")
         copytree(manifests_source_path, manifests_target_path)
-        print("Created manifest template")
+        logger.info(f"Created Manifests in: {manifests_target_path}")
+    else:
+        logger.info(f"Manifests found in: {manifests_target_path}")
 
     if not exists(installed_target_path):
-        installed_source_path = join(root_path, "server", "Installed")
+        logger.info(f"Copying Installed from: {installed_source_path}")
         copytree(installed_source_path, installed_target_path)
-        print("Created installed template")
-    
+        logger.info(f"Created Installed in: {installed_target_path}")
+    else:
+        logger.info(f"Installed found in: {manifests_target_path}")    
     
     try:
         logger.info("Starting background polling process")
@@ -855,19 +848,21 @@ if __name__ == "__main__":
             target=poll_background_status, args=(hooks.HOOKS,), daemon=True
         )
         status_thread.start()
-
-        logger.info("Starting flask server")
+        
         if debug:
+            logger.info("Starting flask dev server")
             app.run(
                 host=webserver_config["host"],
                 port=webserver_config["port"],
                 debug=debug,
             )
         else:
+            logger.info("Starting flask prod server")
             serve(
                 app,
                 host=webserver_config["host"],
                 port=webserver_config["port"],
             )
+    
     except Exception as e:
         logger.error(e, exc_info=True)

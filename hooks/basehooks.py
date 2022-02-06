@@ -6,6 +6,10 @@ from reciever import get_server_config, chat
 from re import sub
 from os.path import join
 from os import linesep
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 PING_TARGET = "https://ping.apx.chmr.eu"
@@ -88,11 +92,11 @@ def poll_status_server(status):
 
 
 def best_lap(driver, time, team, newStatus):
-    print("New best lap {}: {}".format(driver, time))
+    logger.info("New best lap {}: {}".format(driver, time))
 
 
 def new_lap(driver, laps, newStatus):
-    print("New lap count {}: {}".format(driver, laps))
+    logger.info("New lap count {}: {}".format(driver, laps))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
     last_lap_time = get_last_lap_time(driver, newStatus)
@@ -110,7 +114,7 @@ def new_lap(driver, laps, newStatus):
 
 
 def on_pos_change(driver, old_pos, new_pos, newStatus):
-    print("New position for {}: {} (was {}) ".format(driver, new_pos, old_pos))
+    logger.info("New position for {}: {} (was {}) ".format(driver, new_pos, old_pos))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
     poll_server(
@@ -127,7 +131,7 @@ def on_pos_change(driver, old_pos, new_pos, newStatus):
 
 
 def on_pos_change_yellow(driver, old_pos, new_pos, newStatus):
-    print("New position for {}: {} (was {}) ".format(driver, new_pos, old_pos))
+    logger.info("New position for {}: {} (was {}) ".format(driver, new_pos, old_pos))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
     poll_server(
@@ -146,7 +150,7 @@ def on_pos_change_yellow(driver, old_pos, new_pos, newStatus):
 def test_lag(driver, speed, old_speed, location, nearby, team, additional, newStatus):
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
-    print(
+    logger.info(
         "Suspected lag for {} v={}, v_old={}, l={}, nearby={}".format(
             driver, speed, old_speed, location, nearby
         )
@@ -168,7 +172,7 @@ def test_lag(driver, speed, old_speed, location, nearby, team, additional, newSt
 
 
 def add_penalty(driver, old_penalty_count, penalty_count, newStatus):
-    print("A penalty was added for {}. Sum={}".format(driver, penalty_count))
+    logger.info("A penalty was added for {}. Sum={}".format(driver, penalty_count))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
     slot = get_slot_by_name(driver, newStatus)
@@ -187,7 +191,7 @@ def add_penalty(driver, old_penalty_count, penalty_count, newStatus):
 
 
 def revoke_penalty(driver, old_penalty_count, penalty_count, newStatus):
-    print("A penalty was removed for {}. Sum={}".format(driver, penalty_count))
+    logger.info("A penalty was removed for {}. Sum={}".format(driver, penalty_count))
     event_time = newStatus["currentEventTime"]
     session = newStatus["session"]
     slot = get_slot_by_name(driver, newStatus)
@@ -206,7 +210,7 @@ def revoke_penalty(driver, old_penalty_count, penalty_count, newStatus):
 
 
 def personal_best(driver, old_best, new_best, newStatus):
-    print(
+    logger.info(
         "A personal best was set: {} old={}, new={}".format(driver, old_best, new_best)
     )
     event_time = newStatus["currentEventTime"]
@@ -228,7 +232,7 @@ def personal_best(driver, old_best, new_best, newStatus):
 
 
 def on_pit_change(driver, old_status, status, newStatus):
-    print(
+    logger.info(
         "Pit status change for {} is now {}, was {}".format(driver, status, old_status)
     )
     event_time = newStatus["currentEventTime"]
@@ -256,7 +260,7 @@ def on_garage_toggle(driver, old_status, status, newStatus):
     slot = get_slot_by_name(driver, newStatus)
     laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     if status:
-        print("{} is now exiting the garage".format(driver))
+        logger.info("{} is now exiting the garage".format(driver))
         poll_server(
             {
                 "old_status": old_status,
@@ -269,7 +273,7 @@ def on_garage_toggle(driver, old_status, status, newStatus):
             }
         )
     else:
-        print("{} returned to the garage".format(driver))
+        logger.info("{} returned to the garage".format(driver))
         poll_server(
             {
                 "old_status": old_status,
@@ -295,7 +299,7 @@ def on_pitting(driver, old_status, status, newStatus):
     laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
     if status:
         pit_times[driver] = time()
-        print("{} is now pitting".format(driver))
+        logger.info("{} is now pitting".format(driver))
         poll_server(
             {
                 "driver": driver,
@@ -312,7 +316,7 @@ def on_pitting(driver, old_status, status, newStatus):
             start_time = pit_times[driver] if driver in pit_times else 0
             if start_time > 0:
                 duration = time() - start_time
-                print(
+                logger.info(
                     "{} finished pitting. Pit took {} seconds.".format(driver, duration)
                 )
                 poll_server(
@@ -326,7 +330,7 @@ def on_pitting(driver, old_status, status, newStatus):
                     }
                 )
             else:
-                print("{} finished pitting".format(driver))
+                logger.info("{} finished pitting".format(driver))
                 poll_server(
                     {
                         "driver": driver,
@@ -337,14 +341,12 @@ def on_pitting(driver, old_status, status, newStatus):
                         "laps": laps,
                     }
                 )
-        except:
-            import traceback
-
-            print(traceback.print_exc())
+        except Exception as e:
+            logger.error(e, exc_info=1)
 
 
 def status_change(driver, old_status, new_status, newStatus):
-    print(
+    logger.info(
         "Finish status change for {} is now {}, was {}".format(
             driver, new_status, old_status
         )
@@ -370,7 +372,7 @@ def status_change(driver, old_status, new_status, newStatus):
 
 
 def on_flag_change(driver, old_flag, new_flag, newStatus):
-    print(
+    logger.info(
         "Driver {} sees a flag change to {} (was {})".format(driver, new_flag, old_flag)
     )
 
@@ -434,7 +436,7 @@ def on_low_speed(driver, speed, location, nearby, team, additional, newStatus):
     event_time = newStatus["currentEventTime"]
     slot = get_slot_by_name(driver, newStatus)
     laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
-    print(driver, location)
+    logger.info(driver, location)
     session = newStatus["session"]
     poll_server(
         {

@@ -3,7 +3,10 @@ from sys import platform
 from os.path import exists
 from json import loads
 from subprocess import Popen as Popen_Native
-from logging import info
+import logging
+
+logger = logging.getLogger(__name__)
+
 def read_webserver_config() -> dict:
     server_config_path = str(Path(__file__).absolute()).replace(
         "rf2/wine.py", "server.json" if platform != "linux" else "server_linux.json"
@@ -32,7 +35,7 @@ def Popen(args, bufsize=- 1, executable=None, stdin=None, stdout=None, stderr=No
 
 
   final_call = "{layer} " + final_call.replace(root, wine_root)
-  info(f"Running on {layer}: {final_call}")
+  logger.info(f"Running on {layer}: {final_call}")
 
   Popen_Native(args, stdin, stdout, stderr, shell, cwd, creationflags)
 

@@ -17,6 +17,8 @@ from requests import get
 import hashlib
 import tempfile
 
+logger = logging.getLogger(__name__)
+
 VERSION_SUFFIX = ".9apx"
 WEATHERCLIENT_URL = "https://forum.studio-397.com/index.php?attachments/rf2weatherpluginv1-14a-zip.40498/"
 OFFICIAL_CONTENT_IDS = [
@@ -93,7 +95,7 @@ OFFICIAL_CONTENT_IDS = [
 
 def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=False):
     weather_path = join(root_path, "weatherclient")
-    logging.info(
+    logger.info(
         f"Adding weather client in directory {weather_path}. API will be {api_type}"
     )
     if reinstall:
@@ -130,7 +132,7 @@ def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=Fal
         target_path = join(weather_path, "rf2WeatherClient.xml")
         with open(target_path, "w") as write_handle:
             write_handle.write(content)
-        logging.info(
+        logger.info(
             f"Wrote {target_path} weather client file. We will have a temperature offset of {temp_offset}"
         )
     # add the weather DLL
@@ -139,7 +141,7 @@ def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=Fal
         root_path, "server", "Bin64", "Plugins", "rf2WeatherPlugin.dll"
     )
     copy(plugin_src_path, plugin_target_path)
-    logging.info(f"Added weather plugin file to {plugin_target_path}")
+    logger.info(f"Added weather plugin file to {plugin_target_path}")
     # add the dll to the custom variables json file
     custom_variables_file = join(
         root_path, "server", "userData", "player", "CustomPluginVariables.JSON"
@@ -149,12 +151,12 @@ def add_weather_client(root_path, api_type, key, uid, temp_offset, reinstall=Fal
     new_content = dumps(json)
     with open(custom_variables_file, "w") as file:
         file.write(new_content)
-    logging.info(f"Added weather plugin file to {custom_variables_file}")
+    logger.info(f"Added weather plugin file to {custom_variables_file}")
 
 
 def generate_veh_templates(target_path: str, veh_templates: list, component_info: dict):
     if len(veh_templates) == 0:
-        logging.exception(
+        logger.exception(
             f"There is no suitable VEH file to use inside of {veh_templates}"
         )
         raise Exception(
@@ -193,7 +195,7 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
                             and overwrites["BaseClass"].lower() in line.lower()
                         ):
                             line_log = line.replace("\n", "")
-                            logging.info(
+                            logger.info(
                                 f'We will choose the VEH file as a template: {template} as it suits the BaseClass string "{base_class}": {line_log}'
                             )
                             matched = True
@@ -201,12 +203,12 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
                             break
 
         else:
-            logging.info(
+            logger.info(
                 f"We will choose the first VEH file as a template: {veh_template}"
             )
         with open(veh_template, "r") as veh_template_handle:
             content = veh_template_handle.read()
-            logging.info(f"Creating VEH file for {entry}")
+            logger.info(f"Creating VEH file for {entry}")
             # ER_AlpineSeries_rF2#52:1
 
             description = f"{name}#{number}"
@@ -239,7 +241,7 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
             if len(newLines) > 0:
                 result = "\n".join(newLines)
                 if overwrites:
-                    print(
+                    logger.info(
                         "Found overwrites for VEH template for entry {}".format(number)
                     )
                     template_lines = result.split("\n")
@@ -255,7 +257,7 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
                                     key,
                                     value if not use_quotes else '"{}"'.format(value),
                                 )
-                                logging.info(
+                                logger.info(
                                     "Using value {} (in quotes: {}) for key {} of entry {}".format(
                                         value,
                                         use_quotes,
@@ -301,22 +303,22 @@ def get_mod_encryption(root_path: str, mod_name: str, type: str) -> dict:
                         official_mods_result[version] = {}
                     official_mods_result[version][version_file] = len(files) != 0
                     if len(files) == 0:
-                        logging.warn(
+                        logger.warn(
                             f"From the file {version_file} no files could be extracted"
                         )
-    logging.info(f"The mod {mod_name} has following structure")
+    logger.info(f"The mod {mod_name} has following structure")
     results = {}
     for version, files in official_mods_result.items():
         has_open_mod = True
         for file_name, open_flag in files.items():
             if not open_flag:
-                logging.info(
+                logger.info(
                     f"Version {version} has at least one encrypted mod: {file_name}"
                 )
                 has_open_mod = False
                 break
         if has_open_mod:
-            logging.info(f"Version {version} has at least one open mod")
+            logger.info(f"Version {version} has at least one open mod")
         results[version] = has_open_mod
     return results
 
@@ -330,23 +332,23 @@ def is_official_mod(
     results = get_mod_encryption(root_path, mod_name, type)
     has_base_version = len(results) == 2
     if not has_base_version:
-        logging.info(
+        logger.info(
             "The mod has only one version, skipping check for official mod structure"
         )
         return False
     if not force_version_ignore_encryption:
         if not list(results.values())[0] and list(results.values())[1]:
-            logging.info(
+            logger.info(
                 "The mod has multiple versions, the first one is encrypted, the second is not. This is considered an official mod scheme."
             )
             return True
     else:
         if has_base_version:
-            logging.info(
+            logger.info(
                 "The mod has two versions, skipping check encryption as user requested"
             )
             return True
-    logging.info(
+    logger.info(
         "The mod has multiple versions, but the encryption is not as expected. Might be third party."
     )
     return False
@@ -359,7 +361,7 @@ def deploy_server(
     log_path = join(root_path, "reciever.log")
     with open(log_path, "w"):
         pass
-    logging.info("Starting server deploy")
+    logger.info("Starting server deploy")
     vehicles = server_config["mod"]["cars"]
     tracks = server_config["mod"]["track"]
     suffix = server_config["mod"]["suffix"]
@@ -378,7 +380,7 @@ def deploy_server(
     global VERSION_SUFFIX
     if suffix:
         VERSION_SUFFIX = suffix
-        logging.info(f"Using {suffix} as version label")
+        logger.info(f"Using {suffix} as version label")
     else:
         VERSION_SUFFIX = ".9apx"  # to reset between builds
 
@@ -387,22 +389,19 @@ def deploy_server(
         now = datetime.now()
         VERSION_SUFFIX = now.strftime(VERSION_SUFFIX)
         server_config["mod"]["suffix"] = VERSION_SUFFIX
-        logging.info("The package suffix was parsed to {}".format(VERSION_SUFFIX))
+        logger.info("The package suffix was parsed to {}".format(VERSION_SUFFIX))
 
     if "%" in mod_info["version"]:
         now = datetime.now()
         mod_info["version"] = now.strftime(mod_info["version"])
         server_config["mod"]["mod"]["version"] = mod_info["version"]
-        logging.info("The mod version was parsed to {}".format(mod_info["version"]))
+        logger.info("The mod version was parsed to {}".format(mod_info["version"]))
 
     if "%" in VERSION_SUFFIX or "%" in mod_info["version"]:
-        onStateChange("Create conditions failed", str(e), status_hooks)
-        logging.error(
-            "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
-        )
-        raise Exception(
-            "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
-        )
+        msg = "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
+        onStateChange("Create conditions failed", msg, status_hooks)
+        logger.error(msg)
+        raise Exception(msg)
 
     conditions = (
         server_config["mod"]["conditions"]
@@ -436,7 +435,7 @@ def deploy_server(
         if id not in all_steam_ids and "-" not in str(id):
             all_steam_ids.append(id)
 
-    logging.info(
+    logger.info(
         "We seen {} different steam id's in this deployment.".format(len(all_steam_ids))
     )
 
@@ -445,7 +444,7 @@ def deploy_server(
             # check if the id is one of S397 paid content
             # File based items not included in this check.
             if id in OFFICIAL_CONTENT_IDS:
-                logging.info(
+                logger.info(
                     f"The item {id} is official content and requires an existing key"
                 )
                 key_path = join(root_path, "server", "UserData", "ServerUnlock.bin")
@@ -454,10 +453,10 @@ def deploy_server(
                         "Please add a keyfile to use paid content. See https://wiki.apx.chmr.eu/doku.php?id=troubleshooting#an_apx-created_complains_about_a_missing_key"
                     )
             else:
-                logging.info(
+                logger.info(
                     f"The item {id} is not official content, skipping key check."
                 )
-            logging.info(
+            logger.info(
                 f"Installing workshop item {id} before mod installation to make sure fingerprints can be generated"
             )
             run_steamcmd(server_config, "add", id)
@@ -474,16 +473,16 @@ def deploy_server(
         if exists(fingerprint_path):
             old_file = load(open(fingerprint_path, "r"))
             if old_file == fingerprints:
-                logging.warning(
+                logger.warning(
                     f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}"
                 )
                 raise Exception("No mod files changed, aborted deployment.")
             else:
-                logging.info(
+                logger.info(
                     "Continuing as planned. Mod content and/ or updates changed."
                 )
     else:
-        logging.info("User choosed to ignore fingerprints.")
+        logger.info("User choosed to ignore fingerprints.")
 
     # removal of unused steam mods
     if (
@@ -494,7 +493,7 @@ def deploy_server(
             root_path, "steamcmd", "steamapps", "workshop", "content", "365960"
         )
         all_steam_downloads = listdir(steam_root_path)
-        logging.info(
+        logger.info(
             "There are currently {} steam workshop items downloaded".format(
                 len(all_steam_downloads)
             )
@@ -502,17 +501,17 @@ def deploy_server(
         for steam_id in all_steam_downloads:
             full_item_path = join(steam_root_path, steam_id)
             if steam_id not in all_steam_ids:
-                logging.info(
+                logger.info(
                     f"We will remove the path {full_item_path} to save storage."
                 )
                 rmtree(full_item_path)
-                logging.info(f"Removed {full_item_path} to save storage.")
+                logger.info(f"Removed {full_item_path} to save storage.")
             else:
-                logging.info(
+                logger.info(
                     f"We will NOT remove the path {full_item_path} as it's part of this deployment"
                 )
     else:
-        logging.info("We will not attempt to cleanup steamcmd downloads.")
+        logger.info("We will not attempt to cleanup steamcmd downloads.")
     onStateChange("Restoring vanilla state and doing Steam update", None, status_hooks)
     restore_vanilla(server_config)
     # build vehicle mods
@@ -521,15 +520,15 @@ def deploy_server(
         if ":" in workshop_id:  # the workshop_id is prefixed
             raw_id = workshop_id
             workshop_id = workshop_id.split(":")[0]
-            logging.info(
+            logger.info(
                 f"The provided workshop id {raw_id} is suffixed. Removed suffix. Using {workshop_id} as the ID"
             )
         if int(vehicle["component"]["base_steam_id"]) != 0:
-            logging.info(
+            logger.info(
                 f"The item is based on another item. Demanding installation of base mod."
             )
             if int(vehicle["component"]["base_steam_id"]) < 0:
-                logging.info(f"The base mod is a local only file based item")
+                logger.info(f"The base mod is a local only file based item")
             onStateChange(
                 "Installing base workshop item",
                 vehicle["component"]["base_steam_id"],
@@ -549,19 +548,19 @@ def deploy_server(
             force_version_ignore_encryption,
         )
         if not official and official_check:
-            logging.warning(
+            logger.warning(
                 "The check for official versioning scheme for mod {} showed that this might be official content, but the user did not flag it as such.".format(
                     component_info["name"]
                 )
             )
             official = True
-            logging.warning(
+            logger.warning(
                 "Flagged {} as official version scheme as force_versions is set.".format(
                     component_info["name"]
                 )
             )
         if update and official:
-            logging.info(
+            logger.info(
                 "Requested update on top of component {} which is marked as official content. Selecting latest-even version".format(
                     component_info["name"]
                 )
@@ -589,10 +588,10 @@ def deploy_server(
                     True,
                 )
                 component_info["version"] = "latest"
-                logging.warn(
+                logger.warn(
                     f"User wants to include stock skins with own liveries. Using version {version} as the base version This will create an update on the update, causing to overlap other mods. THIS WILL CAUSE CONNECTION ISSUES!!!!!!!!!!"
                 )
-            logging.info("We will use {} as the base version".format(version))
+            logger.info("We will use {} as the base version".format(version))
             # the most recent version most likely contains the liveries, so we will use a separate version for extract and a different for the base mod
             version_for_extraction = get_latest_version(
                 join(
@@ -600,7 +599,7 @@ def deploy_server(
                 ),
                 True,
             )
-            logging.info(
+            logger.info(
                 "We will use {} as the version to find VEH templates, if needed".format(
                     version_for_extraction
                 )
@@ -622,12 +621,12 @@ def deploy_server(
                 )
                 == 0
             ):
-                logging.info(
+                logger.info(
                     f"We did not see a single VEH file inside of {component_path}. We will generate them now."
                 )
                 generate_veh_templates(component_path, files, vehicle)
             else:
-                logging.info(
+                logger.info(
                     f"Skipping generation of additional VEh files as there are veh files inside of {component_path}."
                 )
             create_mas(server_config, component_info, True)
@@ -639,7 +638,7 @@ def deploy_server(
     for key, track in tracks.items():
         workshop_id = str(track["component"]["steam_id"])
         if int(track["component"]["base_steam_id"]) != 0:
-            logging.info(
+            logger.info(
                 f"The item is based on another item. Demanding installation of base mod."
             )
             onStateChange(
@@ -660,13 +659,13 @@ def deploy_server(
         )
         official = track["component"]["official"]
         if not official and official_check:
-            logging.warning(
+            logger.warning(
                 "The check for official versioning scheme for mod {} showed that this might be official content, but the user did not flag it as such.".format(
                     track["component"]["name"]
                 )
             )
             official = True
-            logging.warning(
+            logger.warning(
                 "Flagged {} as official as force_versions is set.".format(
                     track["component"]["name"]
                 )
@@ -675,7 +674,7 @@ def deploy_server(
         update = component_info["update"]
 
         if update and official:
-            logging.info(
+            logger.info(
                 "Requested update on top of component {} which is marked as official content. Selecting latest-even version".format(
                     component_info["name"]
                 )
@@ -697,7 +696,7 @@ def deploy_server(
                 )
                 > 0
             ):
-                logging.info(
+                logger.info(
                     "The component build path contains prebuild MAS files. We will pick them up instead of generating own ones"
                 )
                 provided_mas_paths = list(
@@ -709,14 +708,14 @@ def deploy_server(
                 for mas_file in provided_mas_paths:
                     full_mas_path = join(component_path, mas_file)
                     # extract the mas file
-                    logging.info(
+                    logger.info(
                         f"Attempting to extract files of {full_mas_path} into {component_path}"
                     )
                     cmd_line = '{} -x"{}" "*.*" -o{}'.format(
                         modmgr_path, full_mas_path, component_path
                     )
                     subprocess.check_output(cmd_line)
-                    logging.info(
+                    logger.info(
                         "Found {} files in {}".format(
                             len(listdir(component_path)) - 1, component_path
                         )
@@ -730,7 +729,7 @@ def deploy_server(
                     "Creating cmp mod for track", component_info["name"], status_hooks
                 )
             except Exception as e:
-                print(e)
+                logger.error(e, exc_info=1)
         try:
 
             onStateChange("Create conditions", None, status_hooks)
@@ -744,10 +743,7 @@ def deploy_server(
             )
         except Exception as e:
             onStateChange("Create conditions failed", str(e), status_hooks)
-            import traceback
-
-            traceback.print_exc()
-            print("Error", e)
+            logger.error(e, exc_info=1)
 
     onStateChange(
         "Building event",
@@ -780,7 +776,7 @@ def deploy_server(
         track["component"]["version"] = version
     copy(path, apx_origin_path)
     onStateChange("Placed mod.json", None, status_hooks)
-    logging.info("Placing updated mod.json")
+    logger.info("Placing updated mod.json")
     with open(path, "w") as file:
         file.write(dumps(event_config))
 
@@ -803,7 +799,7 @@ def deploy_server(
         "skip_all_session_unless_configured" in event_config
         and event_config["skip_all_session_unless_configured"]
     ):
-        logging.info(
+        logger.info(
             "Event has option set to skip all sessions unless the ones configured."
         )
         player_json["Race Conditions"]["Run Warmup"] = False
@@ -829,19 +825,19 @@ def deploy_server(
                 session["type"] + ": " + session["start"],
                 status_hooks,
             )
-            logging.info(
+            logger.info(
                 "Session {} will recieve a start time: {} -> {} minutes after midnight".format(
                     type, start, time_after_midnight
                 )
             )
 
         if "P" in type and "1" not in type:
-            logging.warn("Due to unclear configuration, only Practice 1 is allowed")
+            logger.warn("Due to unclear configuration, only Practice 1 is allowed")
             raise Exception("Due to unclear configuration, only Practice 1 is allowed")
 
         if type == "P1" and laps > 0 and length == 0:
             # if laps are set for practice, cause an error
-            logging.warn("Only time length is allowed for practice")
+            logger.warn("Only time length is allowed for practice")
             raise Exception("Only time length is allowed for practice")
 
         if type == "P1":
@@ -911,29 +907,29 @@ def deploy_server(
             player_json["Game Options"][f"{area} Race Finish Criteria"] = event_config[
                 "race_finish_criteria"
             ]
-        logging.info(
+        logger.info(
             "We will use a user defined race finish criteria: "
             + str(event_config["race_finish_criteria"])
         )
     onStateChange("Updating player.json", None, status_hooks)
     with open(player_json_path, "w") as file:
-        logging.info("Updating player.json to represent session dimensions")
+        logger.info("Updating player.json to represent session dimensions")
         dump(player_json, file, indent=4, separators=(",", ": "))
 
     onStateChange("Updating multiplayer.json", None, status_hooks)
     with open(multiplayer_json_path, "w") as file:
-        logging.info("Updating multiplayer.json to represent session dimensions")
+        logger.info("Updating multiplayer.json to represent session dimensions")
         dump(multiplayer_json, file, indent=4, separators=(",", ": "))
 
-    logging.info("Finished server deploy")
+    logger.info("Finished server deploy")
 
     # create fingerprint file to allow conditional server updates
     fingerprint_path = join(root_path, "reciever", "fingerprint.json")
-    logging.info(f"Create modpack fingerprints file {fingerprint_path}")
+    logger.info(f"Create modpack fingerprints file {fingerprint_path}")
     fingerprint_file = get_fingerprints(event_config, server_config, root_path)
     with open(fingerprint_path, "w") as file:
         file.write(dumps(fingerprint_file))
-    logging.info(f"Finished fingerprinting")
+    logger.info(f"Finished fingerprinting")
     onStateChange("Deployment finished successfully", None, status_hooks)
     return True
 
@@ -1029,7 +1025,7 @@ def update_weather(root_path: str, sessions: list, mod_name, layout):
         "R1": "Race Info",
     }
     weather_template = properties["WET_SOURCE"]
-    logging.info(f"Using the file {weather_template} to generate weather information")
+    logger.info(f"Using the file {weather_template} to generate weather information")
 
     with open(weather_template, "r") as weather_file:
         content = weather_file.read()
@@ -1072,7 +1068,7 @@ def update_weather(root_path: str, sessions: list, mod_name, layout):
             player_json["Race Conditions"]["MULTI Weather"] = 5
 
             with open(player_json_path, "w") as file:
-                logging.info("Updating player.json to represent weather data")
+                logger.info("Updating player.json to represent weather data")
                 dump(player_json, file, indent=4, separators=(",", ": "))
 
 
@@ -1082,12 +1078,12 @@ def create_conditions(
     server_root = join(root_path, "server")
     if conditions is None:
         # conditions may be not configured at all
-        logging.info("Omitting grip injection as there is nothing submitted")
+        logger.info("Omitting grip injection as there is nothing submitted")
         return True
 
     properties = find_location_properties(root_path, mod_name, layout)
     if properties is None:
-        logging.warning(
+        logger.warning(
             "No properties could be extracted from the track. Make sure you are using a correct layout description for this component."
         )
 
@@ -1103,7 +1099,7 @@ def create_conditions(
     weather_template = (
         weather_file_path if exists(weather_file_path) else properties["WET_SOURCE"]
     )
-    logging.info(f"The file {weather_template} is used as a template.")
+    logger.info(f"The file {weather_template} is used as a template.")
     extraction_path = dirname(properties["GDB_SOURCE"])
     extraction_path_files = listdir(extraction_path)
     extraction_path_files.sort()
@@ -1126,7 +1122,7 @@ def create_conditions(
                 or grip_needle
                 and grip_needle.lower() == "natural"
             ):
-                logging.info(
+                logger.info(
                     f"Session {type} will be using {grip_needle} as a ingame start point."
                 )
                 content = re.sub(
@@ -1138,7 +1134,7 @@ def create_conditions(
                 if grip_needle and grip_needle.lower() == "autosave":
                     autosave_path = join(weather_file_parent, "AutoSave.rrbin")
                     if exists(autosave_path):
-                        logging.info(
+                        logger.info(
                             f"The grip needle for {type} demands an autosave. The file exists and will be used."
                         )
                         content = re.sub(
@@ -1147,11 +1143,11 @@ def create_conditions(
                             content,
                         )
                     else:
-                        logging.info(
+                        logger.info(
                             f"There is no autosave file found for {type} at the moment. Start the server once to make it available and deploy again."
                         )
                 if grip_needle and grip_needle.lower() != "autosave":
-                    logging.info(
+                    logger.info(
                         f"Attempting to find a grip file for session {type} by needle {grip_needle}"
                     )
                     found_gripfile = False
@@ -1159,7 +1155,7 @@ def create_conditions(
                     for file in extraction_path_files:
                         lower_file = file.lower()
                         if ".rrbin" in lower_file and grip_needle in lower_file:
-                            logging.info(
+                            logger.info(
                                 "Session {} will use preset grip file {}".format(
                                     type, file
                                 )
@@ -1178,7 +1174,7 @@ def create_conditions(
                                     'RealRoad{}="preset:{}"'.format(type, file),
                                     content,
                                 )
-                                logging.info(
+                                logger.info(
                                     "Session {} will use preset grip file {}, matched by regex {}".format(
                                         type, file, grip_needle
                                     )
@@ -1186,7 +1182,7 @@ def create_conditions(
                                 found_gripfile = True
                                 found_gripfile_name = file
                         except:
-                            logging.warning(
+                            logger.warning(
                                 "Applying an regex for {} did not result in success".format(
                                     grip_needle
                                 )
@@ -1194,16 +1190,16 @@ def create_conditions(
                     if found_gripfile and "autosave" in grip_needle.lower():
                         autosave_path = join(weather_file_parent, "AutoSave.rrbin")
                         if not exists(autosave_path) and found_gripfile_name:
-                            logging.info(
+                            logger.info(
                                 "Session {} will use a preset grip file {} which will be used as future auto save file.".format(
                                     type, found_gripfile_name
                                 )
                             )
                             source_path = join(extraction_path, found_gripfile_name)
                             copy(source_path, autosave_path)
-                            logging.info(f"Copied {source_path} to {autosave_path}")
+                            logger.info(f"Copied {source_path} to {autosave_path}")
                         else:
-                            logging.info(
+                            logger.info(
                                 "Session {} want's a preset become a auto save file, but the file is already existing. Doing nothing.".format(
                                     type, found_gripfile_name
                                 )
@@ -1215,11 +1211,11 @@ def create_conditions(
                         )
 
                 else:
-                    logging.info(
+                    logger.info(
                         "Session {} will not use preset grip files".format(type)
                     )
 
-        logging.info(f"Writing grip additions into file {weather_file_path}")
+        logger.info(f"Writing grip additions into file {weather_file_path}")
         with open(weather_file_path, "w") as weather_write_handle:
             weather_write_handle.write(content)
     return True
@@ -1228,7 +1224,7 @@ def create_conditions(
 def get_latest_version(root_path: str, latest=True) -> str:
     versions = listdir(root_path)
     if len(versions) == 1:
-        logging.info(
+        logger.info(
             "We don't need to sort here as only one version ({}) for {} is available. Falling back.".format(
                 versions[0], root_path
             )
@@ -1239,12 +1235,12 @@ def get_latest_version(root_path: str, latest=True) -> str:
         versions.sort(key=LooseVersion)
     except:
         versions = True
-        logging.error("Version sort failed. Falling back to filesystem sorting")
+        logger.error("Version sort failed. Falling back to filesystem sorting")
         versions.sort()
     if len(versions) == 0:
         raise Exception("There are no versions to choose from")
     if latest:
-        logging.warning(
+        logger.warning(
             "You are using latest version for component inside {}. If updates are relying on that, this may cause issues.".format(
                 root_path
             )
@@ -1283,8 +1279,7 @@ def build_mod(
                 join(root_path, "server", "Installed", "Vehicles", name),
                 version == "latest",
             )
-            logging.info(f"Using {version} as mod version for item {name}")
-            print("Using", version, "as mod version for item", name)
+            logger.info(f"Using {version} as mod version for item {name}")
 
         line = 'Vehicle="' + name + " v" + version + ',0"'
         if len(vehicle["entries"]) > 0:
@@ -1299,7 +1294,7 @@ def build_mod(
         if server_config["mod"]["include_stock_skins"]:
             base_version = version.replace(VERSION_SUFFIX, "")
 
-            logging.info(
+            logger.info(
                 f"The event demands to include stock skins from {name}. We will use {base_version} to find the veh files."
             )
             entries = get_entries_from_mod(root_path, name, base_version)
@@ -1320,8 +1315,7 @@ def build_mod(
                 join(root_path, "server", "Installed", "Locations", name),
                 version == "latest",
             )
-            logging.info(f"Using {version} as mod version for item {name}")
-            print("Using", version, "as mod version for item", name)
+            logger.info(f"Using {version} as mod version for item {name}")
 
         line = 'Track="' + name + " v" + version + ',0" '
         layouts = get_layouts(root_path, name, version)
@@ -1334,8 +1328,8 @@ def build_mod(
                     enable_flag = (
                         "1" if track["layout"] == layout[possible_value] else 0
                     )
-                    logging.info(f"Found data {possible_value}, {layout}, {track}")
-                    logging.info(
+                    logger.info(f"Found data {possible_value}, {layout}, {track}")
+                    logger.info(
                         "Checking if layout key "
                         + possible_value
                         + " with value "
@@ -1348,13 +1342,13 @@ def build_mod(
                         found_track = True
                         break
                 else:
-                    logging.info(f"Skipping key {possible_value} as the value is None")
+                    logger.info(f"Skipping key {possible_value} as the value is None")
             if found_track:
                 layout_text = layout["EventName"].replace('"', '\\"')
                 layouts_string = layouts_string + '"' + f'{layout_text},{enable_flag}"'
                 break
         if found_track:
-            logging.info(
+            logger.info(
                 "We found the track desired, all other track layouts are set to be disabled. Track desired: "
                 + track["layout"]
             )
@@ -1363,7 +1357,7 @@ def build_mod(
                 layout_text = layout["EventName"].replace('"', '\\"')
                 layouts_string = layouts_string + '"' + f'{layout_text},1"'
             desired_layout = track["layout"]
-            logging.info(
+            logger.info(
                 f"We don't found the desired layout in the gdb layout list. Enabling all tracks. Desired layout name is {desired_layout}, track list is {layouts}"
             )
 
@@ -1405,7 +1399,7 @@ def build_mod(
     run_modmgr_build(server_root_path, pkg_info_path)
     run_modmgr_install(server_root_path, rfmod_path)
     if not exists(rfmod_path) or stat(rfmod_path).st_size == 0:
-        logging.fatal(
+        logger.fatal(
             "The deployment failed. The mod is either not existing or empty. Check your keys and rfm settings."
         )
         raise Exception("Deployment failed")
@@ -1420,7 +1414,7 @@ def run_modmgr_build(server_root_path: str, pkg_info_path: str):
         "0",
     ]
 
-    logging.info("Running modmgr build {}".format(cmd_line))
+    logger.info("Running modmgr build {}".format(cmd_line))
     build = subprocess.Popen(
         cmd_line,
         shell=False,
@@ -1431,7 +1425,7 @@ def run_modmgr_build(server_root_path: str, pkg_info_path: str):
 
     return_code = build.wait()
 
-    logging.info(
+    logger.info(
         "ModMgr command {} returned error code {}".format(cmd_line, return_code)
     )
 
@@ -1445,12 +1439,12 @@ def run_modmgr_install(server_root_path: str, pkg_path: str):
         "-q",
         f"-i{pkg_path}",
     ]
-    logging.info("Running modmgr install {}".format(cmd_line))
+    logger.info("Running modmgr install {}".format(cmd_line))
     build = subprocess.Popen(
         cmd_line, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     return_code = build.wait()
-    logging.info(
+    logger.info(
         "ModMgr command {} returned error code {}".format(cmd_line, return_code)
     )
 
@@ -1508,7 +1502,7 @@ def build_cmp_mod(
     with open(cmp_file, "w") as cmp_write:
         cmp_write.write(data)
 
-    logging.info("Created cmpinfo file in {}".format(cmp_file))
+    logger.info("Created cmpinfo file in {}".format(cmp_file))
     run_modmgr_build(join(root_path, "server"), cmp_file)
     run_modmgr_install(join(root_path, "server"), location_path)
     return exists(target_path)
@@ -1536,7 +1530,7 @@ def restore_vanilla(server_config: dict) -> bool:
         server_root_path, "steamapps", "workshop", "content", "365960"
     )
     if exists(steam_packages_path):
-        logging.info("Removed tree in {}".format(steam_packages_path))
+        logger.info("Removed tree in {}".format(steam_packages_path))
         rmtree(steam_packages_path)
 
     # Overwrite player.json and multiplayer.json
@@ -1562,19 +1556,19 @@ def restore_vanilla(server_config: dict) -> bool:
         full_plugin_path = join(plugins_path, plugin)
         if plugin.endswith(".dll"):
             unlink(full_plugin_path)
-            logging.info(f"Removed {plugin} to restore vanilla state")
+            logger.info(f"Removed {plugin} to restore vanilla state")
     with open(plugin_json_path, "w") as file_handle:
-        logging.info(
+        logger.info(
             f"Overwriting CustomPluginVariables.JSON with an empty dict as there are no plugins at this moment"
         )
         file_handle.write("{}")
-    logging.info("Wrote empty json into custom variables JSON from templates")
+    logger.info("Wrote empty json into custom variables JSON from templates")
     with open(plugin_json_path, "r") as read_handle:
         content = loads(read_handle.read())
         if "plugins" in server_config["mod"]:
             plugins_to_add = server_config["mod"]["plugins"]
             for key, value in plugins_to_add.items():
-                logging.info(
+                logger.info(
                     f"Adding plugin definition for {key} to CustomPluginVariables.JSON"
                 )
                 content[key] = value
@@ -1594,7 +1588,7 @@ def restore_vanilla(server_config: dict) -> bool:
     web_ui_port = int(get_server_port(server_config))
     if web_ui_port == 5397:
         error_text = "The server setting WebUI port is still on the default value. Aborting deployment."
-        logging.fatal(error_text)
+        logger.fatal(error_text)
         raise Exception(error_text)
 
     folder_paths = {
@@ -1610,22 +1604,22 @@ def restore_vanilla(server_config: dict) -> bool:
         and server_config["mod"]["remove_settings"] == True
     ):
         folder_paths[join(user_data_path, "player", "Settings")] = []
-        logging.info(
+        logger.info(
             "User choosed to remove settings folders. Will be included in deletion"
         )
     else:
-        logging.info("User choosed to persist settings. Will not be changed.")
+        logger.info("User choosed to persist settings. Will not be changed.")
 
     if (
         "remove_cbash_shaders" in server_config["mod"]
         and server_config["mod"]["remove_cbash_shaders"] == True
     ):
         folder_paths[join(user_data_path, "Log")] = ["CBash", "Results", "Shaders"]
-        logging.info(
+        logger.info(
             "User choosed to remove CBash and shader folders. Will be included in deletion"
         )
     else:
-        logging.info("User choosed to persist CBash and folders. Will not be changed.")
+        logger.info("User choosed to persist CBash and folders. Will not be changed.")
 
     collect_results_replays = (
         server_config["mod"]["collect_results_replays"]
@@ -1634,36 +1628,36 @@ def restore_vanilla(server_config: dict) -> bool:
     )
 
     if collect_results_replays:
-        logging.info("Making sure replay and results folder will persist")
+        logger.info("Making sure replay and results folder will persist")
         if not exists(join(server_root_path, "UserData", "Replays")):
-            logging.info("Replays path was not yet existing, creating")
+            logger.info("Replays path was not yet existing, creating")
             mkdir(join(server_root_path, "UserData", "Replays"))
         replays_path = join(server_root_path, "UserData", "Replays", "apx-keep.txt")
         with open(replays_path, "w") as file:
             file.write("No delete, kthxbye")
-        logging.info("Wrote lockfile into {}".format(replays_path))
+        logger.info("Wrote lockfile into {}".format(replays_path))
         if not exists(join(server_root_path, "UserData", "Log")):
-            logging.info("Logs path was not yet existing, creating")
+            logger.info("Logs path was not yet existing, creating")
             mkdir(join(server_root_path, "UserData", "Log"))
         results_path = join(server_root_path, "UserData", "Log", "apx-keep.txt")
         with open(results_path, "w") as file:
             file.write("No delete, kthxbye")
-        logging.info("Wrote lockfile into {}".format(results_path))
+        logger.info("Wrote lockfile into {}".format(results_path))
 
     for folder_path, folders in folder_paths.items():
         if not exists(join(folder_path, "apx-keep.txt")):
             if exists(folder_path):
-                logging.info("Removed tree in {}".format(folder_path))
+                logger.info("Removed tree in {}".format(folder_path))
                 rmtree(folder_path)
-            logging.info("Creating folder in {}".format(folder_path))
+            logger.info("Creating folder in {}".format(folder_path))
             mkdir(folder_path)
             if len(folders) > 0:
                 for sub_folder in folders:
                     sub_folder_path = join(folder_path, sub_folder)
                     mkdir(sub_folder_path)
-                    logging.info("Creating folder in {}".format(sub_folder_path))
+                    logger.info("Creating folder in {}".format(sub_folder_path))
         else:
-            logging.info(
+            logger.info(
                 "Ignoring the folder {} as it's marked as to be kept.".format(
                     folder_path
                 )
@@ -1681,17 +1675,17 @@ def restore_vanilla(server_config: dict) -> bool:
 
     for path, target_path in template_copy_paths.items():
         if exists(target_path):
-            logging.info("Removing tree in {}".format(target_path))
+            logger.info("Removing tree in {}".format(target_path))
             rmtree(target_path)
 
-        logging.info("Applying template from {} to {}".format(path, target_path))
+        logger.info("Applying template from {} to {}".format(path, target_path))
         copytree(path, target_path)
     do_update = server_config["mod"]["update_on_build"]
     if do_update:
         # Update the server itself using steam
         run_steamcmd(server_config, "update")
     else:
-        logging.info("Skipping update of the server itself.")
+        logger.info("Skipping update of the server itself.")
 
 
 def update_server_only(server_config: dict):
@@ -1720,14 +1714,14 @@ def create_mas(
                 version == "latest",
             )
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
     if not add_version_suffix:
         target_path = join(build_path, name + ".mas")
     else:
         target_path = join(build_path, name + "_v" + version + VERSION_SUFFIX + ".mas")
     if exists(target_path):
         unlink(target_path)
-        logging.info("Removed old mas file on {}".format(target_path))
+        logger.info("Removed old mas file on {}".format(target_path))
     build_mas(server_config, component_path, target_path)
 
 
@@ -1745,7 +1739,7 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
         + join(source_path, "*.*")
     )
 
-    logging.info("Creating an mas file {}".format(cmd_line))
+    logger.info("Creating an mas file {}".format(cmd_line))
     build = subprocess.getstatusoutput(cmd_line)
     # keep casing
     lowercase_path = join(root_path, "build", target_path.lower())
@@ -1771,7 +1765,7 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
         gdb_matches = list(filter(lambda x: ".gdb" in x.lower(), files))
         wet_matches = list(filter(lambda x: ".wet" in x.lower(), files))
         if len(gdb_matches) != 1:
-            logging.error("We found {} files for {}".format(len(gdb_matches), key))
+            logger.error("We found {} files for {}".format(len(gdb_matches), key))
             raise Exception("No suitable GDB file found")
 
         gdb_file = join(key, gdb_matches[0])
@@ -1783,14 +1777,14 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                 matches = re.findall(pattern, content, re.MULTILINE)
                 if matches is not None and len(matches) == 1:
                     property_map[key][property] = matches[0].strip()
-                    logging.info(
+                    logger.info(
                         'Based on file situation, we identified "{}" as a property for {}.'.format(
                             property_map[key][property], property
                         )
                     )
 
         if len(wet_matches) == 1:
-            logging.info(
+            logger.info(
                 "Found WET file. Using WET={}, WET_SOURCE={}".format(
                     wet_matches[0], join(key, wet_matches[0])
                 )
@@ -1805,17 +1799,17 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                 haystack.append(properties[needle])
         if desired_layout in haystack:
             desired_layout = properties["EventName"]
-            logging.info(
+            logger.info(
                 "Setting the desired layout to {} to make sure the game works with it.".format(
                     desired_layout
                 )
             )
-            logging.info("Using data {} for weather injection.".format(desired_layout))
+            logger.info("Using data {} for weather injection.".format(desired_layout))
             # write a marker to remember the GDB name
             # ASSUMPTION = GDB FILENAME IN UPPERCASE == CALLVOTE NAME
             gdb_name_path = join(root_path, "reciever", "gdbname.txt")
             gdb_name = basename(properties["GDB_SOURCE"]).upper().replace(".GDB", "")
-            logging.info(
+            logger.info(
                 "Writing marker {} with content {} to remember GDB name".format(
                     gdb_name_path, gdb_name
                 )
@@ -1838,13 +1832,13 @@ def find_location_properties(root_path: str, mod_name: str, desired_layout: str)
                 properties["WET"] = wet_filename
                 properties["WET_SOURCE"] = artifical_wet_file_path
 
-                logging.info(
+                logger.info(
                     "No WET file found. Creating one for WET={}, WET_SOURCE={}".format(
                         wet_filename, artifical_wet_file_path
                     )
                 )
             return properties
-    logging.warn(
+    logger.warn(
         "There is no suitable GDB content found. The desired layout was {}".format(
             desired_layout
         )
@@ -1887,7 +1881,7 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
                 )
                 grip_files.sort()
                 if len(grip_files) > 0:
-                    logging.info(
+                    logger.info(
                         "We managed to extract following grip files from the MAS file {}: {}".format(
                             file,
                             ",".join(grip_files),

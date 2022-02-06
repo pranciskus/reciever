@@ -1,9 +1,13 @@
 from math import sqrt
+from sys import exc_info
 from rf2.events import (
     LOW_SPEED_THRESHOLD,
     STATUS_INTERVALS_FOR_LOW_SPEED_HOOK,
     LAG_DIFFERENCE_THRESHOLD,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_speed(drivers):
@@ -107,7 +111,4 @@ def onSuspectedLag(oldStatus, newStatus, all_hooks):
                             )
                         del lag_warns[driver]
         except Exception as e:
-            import traceback
-
-            print(traceback.print_exc())
-            print(e)
+            logger.error(e, exc_info=1)

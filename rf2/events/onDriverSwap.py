@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 def get_driver_by_slot(drivers):
     result = {}
     for driver in drivers:
@@ -22,7 +26,4 @@ def onDriverSwap(oldStatus, newStatus, all_hooks):
                         for hook in all_hooks:
                             hook(slotId, old_driver, new_driver, newStatus)
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        print(e)
+        logger.error(e, exc_info=1)
