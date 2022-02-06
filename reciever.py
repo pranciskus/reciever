@@ -115,7 +115,7 @@ class RecieverError(Exception):
         if status_code is not None:
             self.status_code = status_code
         self.payload = payload
-        logger.error(self.message)
+        logger.error(self.message, exc_info=1)
 
     def to_dict(self):
         rv = dict(self.payload or ())
@@ -379,7 +379,6 @@ def deploy_server_config():
                 )
             )
     except Exception as e:
-        logger.error(e)
         raise RecieverError(str(e))
 
     soft_lock_toggle()
@@ -686,7 +685,7 @@ def get_file(component: str, version: str, file: str):
                 )
                 if exists(path):
                     return send_file(path)
-    raise RecieverError("Unable to send a file")
+    raise RecieverError(f"Unable to send a file to {path}")
 
 
 @app.route("/mod", methods=["GET"])
@@ -709,6 +708,7 @@ def download_files():
 
 
 def signature_build():
+    # TODO: why two same calls?
     raw_mod = get_public_mod_info()
     got = get_public_mod_info()
     
@@ -865,4 +865,4 @@ if __name__ == "__main__":
             )
     
     except Exception as e:
-        logger.error(e, exc_info=True)
+        logger.error(e, exc_info=1)
