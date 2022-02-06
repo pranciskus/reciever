@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from flask import Flask, request, Request, abort, send_file, jsonify, render_template
 from functools import wraps
 from werkzeug.exceptions import HTTPException
@@ -89,8 +90,39 @@ RECIEVER_HOOK_EVENTS = [
 
 # load actual hooks
 import hooks
+import logging
+
+logging.basicConfig(filename='reciever.log', level=logging.INFO, format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s')
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+
+class RecieverError(Exception):
+    status_code = 418
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+        logger.error(self.message)
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
+
+@app.errorhandler(RecieverError)
+def handle_reciever_error(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
 recieved_status = None
 
 
@@ -157,9 +189,14 @@ def handle_error(e):
 @app.route("/oneclick_start_server", methods=["GET"])
 @check_api_key
 def start_oneclick():
-    got = oneclick_start_server(get_server_config(), signature_build())
+    config = get_server_config()
+    files = signature_build()
+
+    got= oneclick_start_server(config, files)
+
     if not got:
         raise Exception("The server could not be started")
+    
     return json_response({"is_ok": got}), 200
 
 
@@ -218,12 +255,16 @@ def poll_background_status(all_hooks):
 def status():
     if last_status:
         last_status["mod_content"] = mod_content
+
+    app.logger.info(last_status)
+
     return json_response(last_status), 200
 
 
 @app.route("/stop", methods=["GET"])
 @check_api_key
 def stop():
+    app.logger.info("/status")
     return json_response({"is_ok": stop_server(get_server_config())}), 200
 
 
@@ -245,7 +286,7 @@ def kick():
     is_ok = False
     name = request.form.get("driver")
     if not name:
-        abort(404)
+        raise RecieverError("Driver name not provided")
     kick_player(get_server_config(), name)
     is_ok = True
     return json_response({"is_ok": is_ok})
@@ -257,7 +298,8 @@ def send_message():
     message = request.form.get("message")
 
     if not message:
-        abort(404)
+        raise RecieverError(f"Message not provided")
+    
     chat(get_server_config(), message)
     return json_response({"is_ok": True})
 
@@ -327,8 +369,9 @@ def deploy_server_config():
     onStateChange("Deployment starting", None, status_hooks)
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
+    
     if not config_contents:
-        abort(404)
+        raise RecieverError(f"Config not provided")
 
     server_config = get_server_config()
     release_file_path = join(
@@ -569,7 +612,7 @@ def get_lockfile():
     root_path = server_config["server"]["root_path"]
     lockfile_path = join(root_path, "server", "UserData", "ServerKeys.bin")
     if not exists(lockfile_path):
-        abort(404)
+        raise RecieverError(f"Lockfile not found in {lockfile_path}")
     return send_file(
         lockfile_path, attachment_filename="ServerKeys.bin", as_attachment=True
     )
@@ -580,9 +623,9 @@ def get_lockfile():
 def get_log_file():
     server_config = get_server_config()
     root_path = server_config["server"]["root_path"]
-    logfile_path = join(root_path, "reciever.log")
+    logfile_path = join(root_path, "reciever", "reciever.log")
     if not exists(logfile_path):
-        abort(404)
+        raise RecieverError(f"Log file not found in {logfile_path}")
     return send_file(
         logfile_path, attachment_filename="reciever.log", as_attachment=True
     )
@@ -661,7 +704,7 @@ def get_file(component: str, version: str, file: str):
                 )
                 if exists(path):
                     return send_file(path)
-    abort(404)
+    raise RecieverError("Unable to send a file")
 
 
 @app.route("/mod", methods=["GET"])
@@ -686,8 +729,10 @@ def download_files():
 def signature_build():
     raw_mod = get_public_mod_info()
     got = get_public_mod_info()
+    
     if got is None:
-        abort(404)
+        raise RecieverError("Mod info not found")
+    
     mod = got["mod"]["mod"]
     version = mod["version"]
     name = mod["name"]
@@ -696,8 +741,10 @@ def signature_build():
     filename = join(
         root_path, "server", "Manifests", name + "_" + version.replace(".", "") + ".mft"
     )
+    
     if not exists(filename):
-        abort(404)
+        raise RecieverError(f"Manifest file not found {filename}")
+    
     pattern = r"(Name|Version|Type|Signature|BaseSignature)=(.+)"
 
     signatures = []
@@ -800,31 +847,27 @@ if __name__ == "__main__":
         installed_source_path = join(root_path, "server", "Installed")
         copytree(installed_source_path, installed_target_path)
         print("Created installed template")
-    log_path = join(root_path, "reciever.log")
-
-    log_handler = handlers.TimedRotatingFileHandler(log_path, when="D", interval=5)
-    formatter = Formatter(
-        "%(asctime)s %(filename)s:%(lineno)d %(levelname)s [%(process)d]: %(message)s",
-        "%b %d %H:%M:%S",
-    )
-    log_handler.setFormatter(formatter)
-    logger = getLogger()
-    logger.addHandler(log_handler)
-    logger.setLevel(DEBUG if debug else INFO)
-    status_thread = Thread(
-        target=poll_background_status, args=(hooks.HOOKS,), daemon=True
-    )
-    status_thread.start()
-
-    if debug:
-        app.run(
-            host=webserver_config["host"],
-            port=webserver_config["port"],
-            debug=debug,
+    
+    
+    try:
+        logger.info("Starting background polling process")
+        status_thread = Thread(
+            target=poll_background_status, args=(hooks.HOOKS,), daemon=True
         )
-    else:
-        serve(
-            app,
-            host=webserver_config["host"],
-            port=webserver_config["port"],
-        )
+        status_thread.start()
+
+        logger.info("Starting flask server")
+        if debug:
+            app.run(
+                host=webserver_config["host"],
+                port=webserver_config["port"],
+                debug=debug,
+            )
+        else:
+            serve(
+                app,
+                host=webserver_config["host"],
+                port=webserver_config["port"],
+            )
+    except Exception as e:
+        logger.error(e, exc_info=True)

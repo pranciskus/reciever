@@ -1,4 +1,9 @@
 @echo off
+
+set "dir=%~dp0"
+
+cd "%dir%"
+
 ..\python.exe --version
 
 if not exist "server.json" (
