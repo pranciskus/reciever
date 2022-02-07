@@ -11,9 +11,9 @@ import sys
 logger = logging.getLogger(__name__)
 
 STEAMCMDCOMMANDS = {
-    "add": f"+login anonymous +workshop_download_item 365960",
-    "update": f"+login anonymous +app_update 400300 ",
-    "install": f"+login anonymous +app_update 400300 ",
+    "add": "+login anonymous +workshop_download_item 365960",
+    "update": "+login anonymous +app_update 400300 ",
+    "install": "+login anonymous +app_update 400300 ",
 }
 
 
@@ -68,7 +68,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
 
     if arg is not None:
         command_line = command_line + " " + str(arg)
-    command_line = command_line + f" +quit"
+    command_line = command_line + " +quit"
     try:
         logger.info("Running shell command {}".format(command_line))
         p = subprocess.Popen(command_line, shell=True, stderr=subprocess.PIPE)

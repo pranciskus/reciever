@@ -525,10 +525,10 @@ def deploy_server(
             )
         if int(vehicle["component"]["base_steam_id"]) != 0:
             logger.info(
-                f"The item is based on another item. Demanding installation of base mod."
+                "The item is based on another item. Demanding installation of base mod."
             )
             if int(vehicle["component"]["base_steam_id"]) < 0:
-                logger.info(f"The base mod is a local only file based item")
+                logger.info("The base mod is a local only file based item")
             onStateChange(
                 "Installing base workshop item",
                 vehicle["component"]["base_steam_id"],
@@ -639,7 +639,7 @@ def deploy_server(
         workshop_id = str(track["component"]["steam_id"])
         if int(track["component"]["base_steam_id"]) != 0:
             logger.info(
-                f"The item is based on another item. Demanding installation of base mod."
+                "The item is based on another item. Demanding installation of base mod."
             )
             onStateChange(
                 "Installing base workshop item",
@@ -929,7 +929,7 @@ def deploy_server(
     fingerprint_file = get_fingerprints(event_config, server_config, root_path)
     with open(fingerprint_path, "w") as file:
         file.write(dumps(fingerprint_file))
-    logger.info(f"Finished fingerprinting")
+    logger.info("Finished fingerprinting")
     onStateChange("Deployment finished successfully", None, status_hooks)
     return True
 
@@ -1559,7 +1559,7 @@ def restore_vanilla(server_config: dict) -> bool:
             logger.info(f"Removed {plugin} to restore vanilla state")
     with open(plugin_json_path, "w") as file_handle:
         logger.info(
-            f"Overwriting CustomPluginVariables.JSON with an empty dict as there are no plugins at this moment"
+            "Overwriting CustomPluginVariables.JSON with an empty dict as there are no plugins at this moment"
         )
         file_handle.write("{}")
     logger.info("Wrote empty json into custom variables JSON from templates")
