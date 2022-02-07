@@ -1,23 +1,21 @@
-import re
 from os.path import join, isfile, exists
-from time import time
 from requests import get
 from requests.exceptions import RequestException
-from json import load, JSONDecodeError
-from rf2.util import get_server_port, get_public_http_server_port
+from json import JSONDecodeError
+from rf2.util import get_server_port
 import logging
 from os import listdir
-from time import time
-from time import time
 
 logger = logging.getLogger(__name__)
+
 
 def get_server_mod(server_config: dict) -> dict:
     target_url = "http://localhost:{}".format(get_server_port(server_config))
     try:
         mod_content = get(target_url + "/rest/race/car").json()
         return mod_content
-    except:
+    except Exception as e:
+        logger.error(e, exc_info=1)
         return None
 
 
@@ -63,6 +61,7 @@ def get_server_status(server_config: dict) -> dict:
     if exists(session_id_path):
         with open(session_id_path, "r") as file:
             session_id = file.read()
+
     reciever_release = open(release_file_path, "r").read()
     result = None
 
@@ -99,21 +98,24 @@ def get_server_status(server_config: dict) -> dict:
             },
             "waypoints": waypoints,
         }
+        # FIXME: nothing specific here that shouldn't work
         # unsure if always working, so in a try catch to prevent complete abort
         try:
             result["race_time"] = (
                 session_info_raw["SESSSET_race_time"]["currentValue"] * 60
             )
             result["time_completion"] = status_raw["raceCompletion"]["timeCompletion"]
-        except:
+        except Exception as e:
+            logging.error(e, exc_info=1)
             pass
-    except RequestException:
+    # FIXME: if server isn't running this logic shouldn't be running
+    except RequestException as e:
+        logging.error(e, exc_info=1)
         result = None  # do nothing, if the server is not running
-    except JSONDecodeError:
+    except JSONDecodeError as e:
+        logging.error(e, exc_info=1)
         result = None  # do nothing, if the server is not running
     except Exception as e:
-        import traceback
-
         logger.error(e, exc_info=1)
         result = None
 

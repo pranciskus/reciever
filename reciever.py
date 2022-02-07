@@ -1,4 +1,3 @@
-from json import JSONDecodeError
 from flask import Flask, request, abort, send_file, jsonify
 from functools import wraps
 from rf2.startup import stop_server, oneclick_start_server
@@ -23,13 +22,13 @@ from sys import exit, argv, platform
 from pathlib import Path
 from waitress import serve
 from threading import Thread
-from time import sleep
 from os import getlogin
 from re import match
 import tempfile
 import tarfile
 from requests import get
 from shutil import copyfileobj
+
 # add hook events
 # hook events call the collected hooks and manipulate the infos from the old and new status, if needed
 from rf2.events.onCarCountChange import onCarCountChange
@@ -58,6 +57,9 @@ from rf2.events.onPositionChange import onPositionChange, onUnderYellowPositionC
 from rf2.events.onTick import onTick
 from rf2.events.onDeploy import onDeploy
 from rf2.events.onStateChange import onStateChange
+import hooks
+import logging
+from logging.handlers import RotatingFileHandler
 
 RECIEVER_HOOK_EVENTS = [
     onCarCountChange,
@@ -87,15 +89,10 @@ RECIEVER_HOOK_EVENTS = [
     onStateChange,
 ]
 
-# load actual hooks
-import hooks
-import logging
-from logging.handlers import RotatingFileHandler
-
 logging.basicConfig(
-    handlers=[RotatingFileHandler('reciever.log', maxBytes=100000, backupCount=10)],
+    handlers=[RotatingFileHandler("reciever.log", maxBytes=100000, backupCount=10)],
     level=logging.INFO,
-    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s'
+    format="%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +102,7 @@ app = Flask(__name__)
 recieved_status = None
 last_status = None
 mod_content = None
+
 
 class RecieverError(Exception):
     status_code = 418
@@ -119,7 +117,7 @@ class RecieverError(Exception):
 
     def to_dict(self):
         rv = dict(self.payload or ())
-        rv['message'] = self.message
+        rv["message"] = self.message
         return rv
 
 
@@ -127,6 +125,14 @@ class RecieverError(Exception):
 def handle_reciever_error(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
+    return response
+
+
+@app.after_request
+def after_request_func(response):
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
     return response
 
 
@@ -171,7 +177,7 @@ def check_api_key(f):
         config = read_webserver_config()
         api_key = request.headers.get("Authorization")
         if not api_key or api_key != config["auth"]:
-            abort(403)
+            raise RecieverError("Authenication failed")
         return f(*args, **kwargs)
 
     return decorated_function
@@ -187,17 +193,17 @@ def start_oneclick():
     config = get_server_config()
     files = signature_build()
 
-    got= oneclick_start_server(config, files)
+    got = oneclick_start_server(config, files)
 
     if not got:
         raise RecieverError("The server could not be started")
-    
+
     return json_response({"is_ok": got}), 200
 
 
-# TODO: write to file last_status
+# FIXME: write to a file last_status and mod_content??? this runs as a separate thread
 def poll_background_status(all_hooks):
-    ## WARNING: If debug is enabled, the thread may run multiple times. don't use in
+    # WARNING: If debug is enabled, the thread may run multiple times. don't use in
     global mod_content
     new_content = get_server_mod(get_server_config())
     excluded = [
@@ -229,7 +235,8 @@ def poll_background_status(all_hooks):
                                 got,
                                 event_hooks_to_run,
                             )
-                        except:
+                        except Exception as e:
+                            logger.error(e, exc_info=1)
                             pass
                     else:
                         if event_name == "onStop":
@@ -288,8 +295,8 @@ def send_message():
     message = request.form.get("message")
 
     if not message:
-        raise RecieverError(f"Message not provided")
-    
+        raise RecieverError("Message not provided")
+
     chat(get_server_config(), message)
     return json_response({"is_ok": True})
 
@@ -308,7 +315,7 @@ def soft_lock_toggle():
 @app.route("/weather", methods=["POST"])
 def weather_update():
     if last_status is not None and "not_running" not in last_status:
-        abort(403)
+        raise RecieverError("Server is running")
 
     # we ignore anything except session lists
     config_contents = request.form.get("config")
@@ -359,9 +366,9 @@ def deploy_server_config():
     onStateChange("Deployment starting", None, status_hooks)
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
-    
+
     if not config_contents:
-        raise RecieverError(f"Config not provided")
+        raise RecieverError("Config not provided")
 
     server_config = get_server_config()
     release_file_path = join(
@@ -402,9 +409,9 @@ def deploy_server_config():
             server_config, rfm_contents, grip, onStateChange, status_hooks
         )
 
-        track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
-        name = track["component"]["name"]
-        layout = track["layout"]
+        # track = server_config["mod"]["track"][next(iter(server_config["mod"]["track"]))]
+        # name = track["component"]["name"]
+        # layout = track["layout"]
 
         if server_config["mod"]["real_weather"]:
             onStateChange("Injecting weather plugin", None, status_hooks)
@@ -417,20 +424,20 @@ def deploy_server_config():
                 False,
             )
         onStateChange("Deployment successfull", None, status_hooks)
-    
+
     # TODO: whats happening here? where response if OK?
     except Exception as e:
 
         logger.fatal(e, exc_info=1)
         onStateChange(f"Deployment failed: {e}", None, status_hooks)
-    
+
     finally:
         soft_lock_toggle()
         event_hooks_to_run = (
             hooks.HOOKS["onDeploy"] if "onDeploy" in hooks.HOOKS else []
         )
         onDeploy(None, None, event_hooks_to_run)  # call the hook
-    
+
     return json_response({"is_ok": False})
 
 
@@ -468,8 +475,8 @@ def get_thumbs():
                     unlink(image_path)
             tar.close()
         return send_file(thumb_file_path, attachment_filename="skins.tar.gz")
-    except:
-        abort(402)
+    except Exception as e:
+        raise RecieverError(str(e))
 
 
 @app.route("/skins", methods=["POST"])
@@ -482,7 +489,7 @@ def get_skins():
             abort(418)
         file = request.files["skins"]
         skinpack_path = join(build_path, file.filename)
-        got = file.save(skinpack_path)
+        file.save(skinpack_path)
 
         target_path = join(build_path, request.form.get("target_path"))
         if exists(target_path):
@@ -548,14 +555,14 @@ def install_plugins():
             else:
                 app.logger.info(f"Path {target_path} exists and will not be cleaned")
 
-            got = iostream.save(join(target_path, base_name))
+            iostream.save(join(target_path, base_name))
             app.logger.info(
                 "Plugin file for {} injected into {}".format(
                     base_name, join(target_path, base_name)
                 )
             )
         else:
-            got = iostream.save(join(server_bin_path, base_name))
+            iostream.save(join(server_bin_path, base_name))
             app.logger.info(
                 "Plugin file for {} injected into {}".format(
                     base_name, join(server_bin_path, base_name)
@@ -565,7 +572,9 @@ def install_plugins():
         if ".dll" in plugin.lower():
             plugin_config[plugin] = overwrite
             plugin_config[plugin][" Enabled"] = 1
-            app.logger.info("Placing plugin {} into CustomPluginVariables.JSON".format(plugin))
+            app.logger.info(
+                "Placing plugin {} into CustomPluginVariables.JSON".format(plugin)
+            )
         else:
             app.logger.info(
                 f"The file {plugin} is not a DLL file, we won't add it into CustomPluginVariables.JSON"
@@ -708,13 +717,13 @@ def download_files():
 
 
 def signature_build():
-    # TODO: why two same calls?
+    # FIXME: why two same calls?
     raw_mod = get_public_mod_info()
     got = get_public_mod_info()
-    
+
     if got is None:
         raise RecieverError("Mod info not found")
-    
+
     mod = got["mod"]["mod"]
     version = mod["version"]
     name = mod["name"]
@@ -723,10 +732,10 @@ def signature_build():
     filename = join(
         root_path, "server", "Manifests", name + "_" + version.replace(".", "") + ".mft"
     )
-    
+
     if not exists(filename):
         raise RecieverError(f"Manifest file not found {filename}")
-    
+
     pattern = r"(Name|Version|Type|Signature|BaseSignature)=(.+)"
 
     signatures = []
@@ -752,7 +761,7 @@ def signature_build():
     mod["suffix"] = VERSION_SUFFIX
     car_haystack = raw_mod["mod"]["cars"]
     track_haystack = raw_mod["mod"]["track"]
-    for index, props in enumerate(signatures):
+    for _, props in enumerate(signatures):
 
         name = props["Name"]
         version = props["Version"]
@@ -779,22 +788,16 @@ def get_signatures():
     return json_response(signature_build())
 
 
-@app.after_request
-def after_request_func(response):
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    return response
-
-
 if __name__ == "__main__":
+
     # check for correct user
     if platform == "win32":
         import win32net
+
         groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
         assumed_admin = False
         for group in groups:
-            # the group name is dependending on the locale, but it may be sufficient for most of the cases to check for contains of "admin"
+            # the group name is dependending on the locale, but it may be sufficient to check for contains of "admin"
             if "admin" in group.lower():
                 assumed_admin = True
                 break
@@ -802,18 +805,18 @@ if __name__ == "__main__":
             raise Exception(
                 "The reciever cannot be run as administrator. Use a dedicated user"
             )
-    
+
     # debug only: add a new server.json per argv
     server_config_path = str(Path(__file__).absolute()).replace(
         "reciever.py", "server.json" if platform != "linux" else "server_linux.json"
     )
-    
+
     # TODO: ????
     if not exists(server_config_path):
         logger.error("{} is not present".format(server_config_path))
         create_config()
         exit(127)
-   
+
     webserver_config = read_webserver_config()
     debug = webserver_config["debug"]
 
@@ -840,15 +843,15 @@ if __name__ == "__main__":
         copytree(installed_source_path, installed_target_path)
         logger.info(f"Created Installed in: {installed_target_path}")
     else:
-        logger.info(f"Installed found in: {manifests_target_path}")    
-    
+        logger.info(f"Installed found in: {manifests_target_path}")
+
     try:
         logger.info("Starting background polling process")
         status_thread = Thread(
             target=poll_background_status, args=(hooks.HOOKS,), daemon=True
         )
         status_thread.start()
-        
+
         if debug:
             logger.info("Starting flask dev server")
             app.run(
@@ -863,6 +866,6 @@ if __name__ == "__main__":
                 host=webserver_config["host"],
                 port=webserver_config["port"],
             )
-    
+
     except Exception as e:
         logger.error(e, exc_info=1)
