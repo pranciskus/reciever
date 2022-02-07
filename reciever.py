@@ -90,7 +90,7 @@ RECIEVER_HOOK_EVENTS = [
 ]
 
 logging.basicConfig(
-    handlers=[RotatingFileHandler("reciever.log", maxBytes=100000, backupCount=10)],
+    handlers=[RotatingFileHandler("reciever.log", maxBytes=10000000, backupCount=3)],
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s",
 )
@@ -126,6 +126,11 @@ def handle_reciever_error(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return json_response({"message": "Not found"}), 404
 
 
 @app.after_request
@@ -175,9 +180,15 @@ def check_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         config = read_webserver_config()
-        api_key = request.headers.get("Authorization")
-        if not api_key or api_key != config["auth"]:
+        
+        header_key = request.headers.get("Authorization", "")
+        query_key = request.args.get("auth", "")
+        
+        final_key = max(header_key, query_key)        
+        
+        if final_key is None or final_key != config["auth"]:
             raise RecieverError("Authenication failed")
+        
         return f(*args, **kwargs)
 
     return decorated_function
@@ -202,6 +213,7 @@ def start_oneclick():
 
 
 # FIXME: write to a file last_status and mod_content??? this runs as a separate thread
+# FIXME: needs complete rewrite
 def poll_background_status(all_hooks):
     # WARNING: If debug is enabled, the thread may run multiple times. don't use in
     global mod_content

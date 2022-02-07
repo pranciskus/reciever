@@ -1,5 +1,4 @@
 from time import time
-from json import dumps
 from requests import post, get
 from threading import Thread
 from reciever import get_server_config, chat
@@ -14,16 +13,20 @@ logger = logging.getLogger(__name__)
 
 PING_TARGET = "https://ping.apx.chmr.eu"
 
+
 def poll_server_async(event):
     config = get_server_config()
     callback_target = config["mod"]["callback_target"]
-    do_request = "heartbeat_only" in config["mod"] and not config["mod"]["heartbeat_only"]
+    do_request = (
+        "heartbeat_only" in config["mod"] and not config["mod"]["heartbeat_only"]
+    )
     is_status_change = "type" in event and event["type"] == "SC"
     if do_request or is_status_change:
         if callback_target is not None:
             try:
-                got = post(callback_target, json=event)
-            except:
+                post(callback_target, json=event)
+            except Exception as e:
+                logging.error(e)
                 pass
 
 
@@ -35,8 +38,9 @@ def poll_server_status_async(status):
         pattern = r"/addmessage.*"
         callback_target = sub(pattern, f"/addstatus/{secret}", callback_target)
         try:
-            got = post(callback_target, json=status)
-        except:
+            post(callback_target, json=status)
+        except Exception as e:
+            logging.error(e)
             pass
 
 
@@ -50,8 +54,9 @@ def publish_logfile():
         files = {"log": open(log_path, "rb")}
         callback_target = sub(pattern, f"/addlog/{secret}", callback_target)
         try:
-            got = post(callback_target, files=files)
-        except:
+            post(callback_target, files=files)
+        except Exception as e:
+            logger.error(e)
             pass
 
 
@@ -342,7 +347,7 @@ def on_pitting(driver, old_status, status, newStatus):
                     }
                 )
         except Exception as e:
-            logger.error(e, exc_info=1)
+            logger.error(e)
 
 
 def status_change(driver, old_status, new_status, newStatus):
@@ -380,35 +385,34 @@ def on_flag_change(driver, old_flag, new_flag, newStatus):
 def on_tick(status):
     poll_status_server(status)
 
+
 def do_stat_poll(target):
-    get(target, headers= {
-        "User-Agent": 'apx-reciever'
-    })
+    get(target, headers={"User-Agent": "apx-reciever"})
+
 
 def on_stop(status):
-    poll_status_server(status)    
-    try: 
-        target_url = PING_TARGET + "/stop"
-        do_stat_poll(target_url)
-    except:
+    poll_status_server(status)
+    try:
+        do_stat_poll(PING_TARGET + "/stop")
+    except Exception as e:
+        logger.warning(e)
         pass
 
 
-
-def on_start():   
-    try: 
-        target_url = PING_TARGET + "/start"
-        do_stat_poll(target_url)
-    except:
+def on_start():
+    try:
+        do_stat_poll(PING_TARGET + "/start")
+    except Exception as e:
+        logger.warning(e)
         pass
 
 
 def on_deploy():
     publish_logfile()
-    try: 
-        target_url = PING_TARGET + "/deploy_finished"
-        do_stat_poll(target_url,)
-    except:
+    try:
+        do_stat_poll(PING_TARGET + "/deploy_finished")
+    except Exception as e:
+        logger.warning(e)
         pass
 
 
@@ -427,7 +431,6 @@ def on_car_count_change(old_status_cars, new_status_cars, newStatus):
             if slot_id not in old_slot_ids:
                 parts = welcome_message.split(linesep)
                 for part in parts:
-                    message = part.replace("{driver_name}", driver_name)
                     chat(config, part.replace("{driver_name}", driver_name))
 
 
