@@ -90,7 +90,7 @@ RECIEVER_HOOK_EVENTS = [
 ]
 
 logging.basicConfig(
-    handlers=[RotatingFileHandler("reciever.log", maxBytes=10000000, backupCount=3)],
+    handlers=[RotatingFileHandler("reciever.log", maxBytes=100000, backupCount=10)],
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s",
 )
@@ -159,6 +159,12 @@ def read_webserver_config() -> dict:
     config = None
     with open(server_config_path, "r") as file:
         config = loads(file.read())
+
+    # TODO: temporary fix for hardcoded path
+    if config.get("root_path", None) is not None:
+        root_path = Path(__file__).parent.parent.absolute()
+        config["root_path"] = root_path
+
     return config
 
 
@@ -180,15 +186,15 @@ def check_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         config = read_webserver_config()
-        
+
         header_key = request.headers.get("Authorization", "")
         query_key = request.args.get("auth", "")
-        
-        final_key = max(header_key, query_key)        
-        
+
+        final_key = max(header_key, query_key)
+
         if final_key is None or final_key != config["auth"]:
             raise RecieverError("Authenication failed")
-        
+
         return f(*args, **kwargs)
 
     return decorated_function
@@ -215,50 +221,53 @@ def start_oneclick():
 # FIXME: write to a file last_status and mod_content??? this runs as a separate thread
 # FIXME: needs complete rewrite
 def poll_background_status(all_hooks):
-    # WARNING: If debug is enabled, the thread may run multiple times. don't use in
-    global mod_content
-    new_content = get_server_mod(get_server_config())
-    excluded = [
-        "onDeploy",
-        "onStateChange",
-    ]  # hooks with special concepts, e. g. lifecycle ones
-    if new_content:
-        mod_content = new_content
-    while True:
-        global last_status
+    try:
+        # WARNING: If debug is enabled, the thread may run multiple times. don't use in
+        global mod_content
+        new_content = get_server_mod(get_server_config())
+        excluded = [
+            "onDeploy",
+            "onStateChange",
+        ]  # hooks with special concepts, e. g. lifecycle ones
+        if new_content:
+            mod_content = new_content
+        while True:
+            global last_status
 
-        if not never_deployed():
-            got = get_server_status(get_server_config())
-            for event_hook in RECIEVER_HOOK_EVENTS:
-                event_name = event_hook.__name__
-                if (
-                    got is not None
-                    and last_status is not None
-                    and event_name not in excluded
-                ):
-                    event_hooks_to_run = (
-                        all_hooks[event_name] if event_name in all_hooks else []
-                    )
-                    if "not_running" not in got:
-                        try:
+            if not never_deployed():
+                got = get_server_status(get_server_config())
+                for event_hook in RECIEVER_HOOK_EVENTS:
+                    event_name = event_hook.__name__
+                    if (
+                        got is not None
+                        and last_status is not None
+                        and event_name not in excluded
+                    ):
+                        event_hooks_to_run = (
+                            all_hooks[event_name] if event_name in all_hooks else []
+                        )
+                        if "not_running" not in got:
+                            try:
 
-                            event_hook(
-                                last_status,
-                                got,
-                                event_hooks_to_run,
-                            )
-                        except Exception as e:
-                            logger.error(e, exc_info=1)
-                            pass
-                    else:
-                        if event_name == "onStop":
-                            event_hook(
-                                last_status,
-                                got,
-                                event_hooks_to_run,
-                            )
-            last_status = got
-        sleep(1)
+                                event_hook(
+                                    last_status,
+                                    got,
+                                    event_hooks_to_run,
+                                )
+                            except Exception as e:
+                                logger.error(e, exc_info=1)
+                                pass
+                        else:
+                            if event_name == "onStop":
+                                event_hook(
+                                    last_status,
+                                    got,
+                                    event_hooks_to_run,
+                                )
+                last_status = got
+            sleep(1)
+    except Exception as e:
+        logger.error(e, exc_info=1)
 
 
 # TODO: read from file last_status
@@ -837,23 +846,29 @@ if __name__ == "__main__":
     root_path = webserver_config["root_path"]
     reciever_path = join(root_path, "reciever")
 
+    # TODO: quit if no Mainifests??? refactor as a function
     manifests_source_path = join(root_path, "server", "Manifests")
-    installed_source_path = join(root_path, "server", "Installed")
-
     manifests_target_path = join(reciever_path, "templates", "Manifests")
-    installed_target_path = join(reciever_path, "templates", "Installed")
-
     if not exists(manifests_target_path):
         logger.info(f"Copying Manifests from: {manifests_source_path}")
-        copytree(manifests_source_path, manifests_target_path)
-        logger.info(f"Created Manifests in: {manifests_target_path}")
+        try:
+            copytree(manifests_source_path, manifests_target_path)
+            logger.info(f"Created Manifests in: {manifests_target_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Manifests. Reason: {str(e)}")
     else:
         logger.info(f"Manifests found in: {manifests_target_path}")
 
+    # TODO: quit if no Installed??? refactor as a function
+    installed_source_path = join(root_path, "server", "Installed")
+    installed_target_path = join(reciever_path, "templates", "Installed")
     if not exists(installed_target_path):
         logger.info(f"Copying Installed from: {installed_source_path}")
-        copytree(installed_source_path, installed_target_path)
-        logger.info(f"Created Installed in: {installed_target_path}")
+        try:
+            copytree(installed_source_path, installed_target_path)
+            logger.info(f"Created Installed in: {installed_target_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Installed. Reason: {str(e)}")
     else:
         logger.info(f"Installed found in: {manifests_target_path}")
 

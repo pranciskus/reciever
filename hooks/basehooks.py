@@ -439,7 +439,7 @@ def on_low_speed(driver, speed, location, nearby, team, additional, newStatus):
     event_time = newStatus["currentEventTime"]
     slot = get_slot_by_name(driver, newStatus)
     laps = get_prop_by_slot(slot, newStatus, "lapsCompleted")
-    logger.info(driver, location)
+    logger.info(f"{driver} {location}")
     session = newStatus["session"]
     poll_server(
         {

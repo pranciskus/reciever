@@ -1,4 +1,7 @@
 from rf2.events import get_prop_map
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_pit_status_map(drivers):
@@ -10,6 +13,9 @@ def get_pit_status_map(drivers):
 
 
 def onPitStateChange(oldStatus, newStatus, all_hooks):
+    logger.info(
+        f"hook: onPitStateChange, old_status: {oldStatus}, new_status: {newStatus}, hooks: {all_hooks}"
+    )
     if "vehicles" in oldStatus and "vehicles" in newStatus:
         old_vehicles = oldStatus["vehicles"]
         new_vehicles = newStatus["vehicles"]
