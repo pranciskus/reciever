@@ -90,7 +90,7 @@ RECIEVER_HOOK_EVENTS = [
 ]
 
 logging.basicConfig(
-    handlers=[RotatingFileHandler("reciever.log", maxBytes=100000, backupCount=10)],
+    handlers=[RotatingFileHandler("reciever.log", maxBytes=1000000, backupCount=5)],
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s",
 )
@@ -98,10 +98,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-recieved_status = None
-last_status = None
-mod_content = None
 
 
 class RecieverError(Exception):
@@ -126,6 +122,11 @@ def handle_reciever_error(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return json_response({"message": "Not found"}), 404
 
 
 @app.after_request
@@ -154,6 +155,12 @@ def read_webserver_config() -> dict:
     config = None
     with open(server_config_path, "r") as file:
         config = loads(file.read())
+
+    # FIXME: temporary fix for hardcoded path
+    if config.get("root_path", None) is not None:
+        root_path = Path(__file__).parent.parent.absolute()
+        config["root_path"] = root_path
+
     return config
 
 
@@ -161,23 +168,34 @@ def get_server_config() -> dict:
     return {"mod": read_mod_config(), "server": read_webserver_config()}
 
 
+# FIXME: what is happening here??? Ask Gunther
 def never_deployed() -> bool:
     old_config = get_server_config()
-    return (
-        old_config["mod"]["server"]["overwrites"]["Multiplayer.JSON"][
-            "Multiplayer Server Options"
-        ]["Default Game Name"]
-        == "[APX] PLACEHOLDER EVENT 1337 ##"
-    )
+    try:
+        return (
+            old_config["mod"]["server"]["overwrites"]["Multiplayer.JSON"][
+                "Multiplayer Server Options"
+            ]["Default Game Name"]
+            == "[APX] PLACEHOLDER EVENT 1337 ##"
+        )
+    except KeyError:
+        # if we have ald broken config, treat it as never_deployed
+        return False
 
 
 def check_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         config = read_webserver_config()
-        api_key = request.headers.get("Authorization")
-        if not api_key or api_key != config["auth"]:
+
+        header_key = request.headers.get("Authorization", "")
+        query_key = request.args.get("auth", "")
+
+        final_key = max(header_key, query_key)
+
+        if final_key is None or final_key != config["auth"]:
             raise RecieverError("Authenication failed")
+
         return f(*args, **kwargs)
 
     return decorated_function
@@ -185,6 +203,74 @@ def check_api_key(f):
 
 def json_response(data) -> str:
     return jsonify(data)
+
+
+# NOTE: is this really necessary at current project state? for real time data this kind of polling solution isn't the best
+# WARNING: If debug is enabled, the thread may run multiple times. don't use in
+def poll_background_status(all_hooks):
+
+    excluded_hooks = (
+        onDeploy,
+        onStateChange,
+    )  # hooks with special concepts, e. g. lifecycle ones
+
+    last_status = None
+    new_status = None
+
+    while True:
+
+        sleep(1)
+
+        if never_deployed():
+            # NOTE: nothing to do yet
+            continue
+
+        try:
+            new_status = get_server_status(get_server_config())
+        except Exception as e:
+            logger.error(str(e), exc_info=1)
+            continue
+
+        if new_status is None or last_status is None:
+            # TODO: don't have enough data to call hooks ??? Ask Gunther
+            last_status = new_status
+            continue
+
+        event_hooks = set(RECIEVER_HOOK_EVENTS).difference(excluded_hooks)
+
+        for event_hook in event_hooks:
+            event_name = event_hook.__name__
+
+            hooks_to_run = all_hooks.get(event_name, [])
+
+            if "not_running" in new_status and event_name != "onStop":
+                # NOTE: if not_running, run only onStop hooks
+                continue
+
+            try:
+                event_hook(
+                    last_status,
+                    new_status,
+                    hooks_to_run,
+                )
+            except Exception as e:
+                logger.error(e, exc_info=1)
+
+        last_status = new_status
+
+
+# TODO: read from file last_status
+@app.route("/status", methods=["GET"])
+def status():
+
+    status = get_server_status(get_server_config())
+
+    if status:
+        status["mod_content"] = get_server_mod(get_server_config())
+
+        return json_response(status), 200
+
+    return json_response({}), 200
 
 
 @app.route("/oneclick_start_server", methods=["GET"])
@@ -201,67 +287,9 @@ def start_oneclick():
     return json_response({"is_ok": got}), 200
 
 
-# FIXME: write to a file last_status and mod_content??? this runs as a separate thread
-def poll_background_status(all_hooks):
-    # WARNING: If debug is enabled, the thread may run multiple times. don't use in
-    global mod_content
-    new_content = get_server_mod(get_server_config())
-    excluded = [
-        "onDeploy",
-        "onStateChange",
-    ]  # hooks with special concepts, e. g. lifecycle ones
-    if new_content:
-        mod_content = new_content
-    while True:
-        global last_status
-
-        if not never_deployed():
-            got = get_server_status(get_server_config())
-            for event_hook in RECIEVER_HOOK_EVENTS:
-                event_name = event_hook.__name__
-                if (
-                    got is not None
-                    and last_status is not None
-                    and event_name not in excluded
-                ):
-                    event_hooks_to_run = (
-                        all_hooks[event_name] if event_name in all_hooks else []
-                    )
-                    if "not_running" not in got:
-                        try:
-
-                            event_hook(
-                                last_status,
-                                got,
-                                event_hooks_to_run,
-                            )
-                        except Exception as e:
-                            logger.error(e, exc_info=1)
-                            pass
-                    else:
-                        if event_name == "onStop":
-                            event_hook(
-                                last_status,
-                                got,
-                                event_hooks_to_run,
-                            )
-            last_status = got
-        sleep(1)
-
-
-# TODO: read from file last_status
-@app.route("/status", methods=["GET"])
-def status():
-    if last_status:
-        last_status["mod_content"] = mod_content
-        return json_response(last_status), 200
-    return json_response({}), 200
-
-
 @app.route("/stop", methods=["GET"])
 @check_api_key
 def stop():
-    # app.logger.info("/stop")
     return json_response({"is_ok": stop_server(get_server_config())}), 200
 
 
@@ -314,6 +342,9 @@ def soft_lock_toggle():
 
 @app.route("/weather", methods=["POST"])
 def weather_update():
+
+    last_status = get_server_status(get_server_config())
+
     if last_status is not None and "not_running" not in last_status:
         raise RecieverError("Server is running")
 
@@ -353,6 +384,9 @@ def deploy_server_config():
     status_hooks = (
         hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
     )
+
+    last_status = get_server_status(get_server_config())
+
     if (
         not never_deployed()
         and last_status is not None
@@ -364,6 +398,7 @@ def deploy_server_config():
         raise RecieverError("Deployment aborted as the server is still running")
 
     onStateChange("Deployment starting", None, status_hooks)
+
     config_contents = request.form.get("config")
     rfm_contents = request.form.get("rfm_config")
 
@@ -825,25 +860,31 @@ if __name__ == "__main__":
     root_path = webserver_config["root_path"]
     reciever_path = join(root_path, "reciever")
 
+    # TODO: quit if no Mainifests??? refactor as a function
     manifests_source_path = join(root_path, "server", "Manifests")
-    installed_source_path = join(root_path, "server", "Installed")
-
     manifests_target_path = join(reciever_path, "templates", "Manifests")
-    installed_target_path = join(reciever_path, "templates", "Installed")
-
     if not exists(manifests_target_path):
         logger.info(f"Copying Manifests from: {manifests_source_path}")
-        copytree(manifests_source_path, manifests_target_path)
-        logger.info(f"Created Manifests in: {manifests_target_path}")
+        try:
+            copytree(manifests_source_path, manifests_target_path)
+            logger.info(f"Created Manifests in: {manifests_target_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Manifests. Reason: {str(e)}")
     else:
         logger.info(f"Manifests found in: {manifests_target_path}")
 
+    # TODO: quit if no Installed??? refactor as a function
+    installed_source_path = join(root_path, "server", "Installed")
+    installed_target_path = join(reciever_path, "templates", "Installed")
     if not exists(installed_target_path):
         logger.info(f"Copying Installed from: {installed_source_path}")
-        copytree(installed_source_path, installed_target_path)
-        logger.info(f"Created Installed in: {installed_target_path}")
+        try:
+            copytree(installed_source_path, installed_target_path)
+            logger.info(f"Created Installed in: {installed_target_path}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Installed. Reason: {str(e)}")
     else:
-        logger.info(f"Installed found in: {manifests_target_path}")
+        logger.info(f"Installed found in: {installed_target_path}")
 
     try:
         logger.info("Starting background polling process")

@@ -1,4 +1,7 @@
 from rf2.events import get_prop_map
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_pit_status_map(drivers):
@@ -40,8 +43,8 @@ def onGarageToggle(oldStatus, newStatus, all_hooks):
                 old_driver_status[driver] if driver in old_driver_status else None
             )
             is_pitting = pitting_drivers[driver] if driver in pitting_drivers else False
-            if old_status != status:
-                for hook in all_hooks and not is_pitting:
+            if old_status != status and not is_pitting:
+                for hook in all_hooks:
                     hook(driver, old_status, status, newStatus)
 
 

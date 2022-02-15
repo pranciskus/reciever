@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 overall_best_lap = None
 overall_best_time = None
 
+
 def onNewBestLapTime(oldStatus, newStatus, all_hooks):
     global overall_best_lap
     global overall_best_time
@@ -32,17 +33,18 @@ def onNewBestLapTime(oldStatus, newStatus, all_hooks):
                 overall_best_lap = best_lap
                 overall_best_time = newStatus["currentEventTime"]
                 for hook in all_hooks:
-                    hook(driver, best_lap, teamName)
+                    hook(driver, best_lap, teamName, newStatus)
 
 
 def onNewPersonalBest(oldStatus, newStatus, all_hooks):
     if "vehicles" in oldStatus and "vehicles" in newStatus:
+        # FIXME: doesn't seem right
         try:
             old_vehicles = oldStatus["vehicles"]
-            new_vehicles = newStatus["vehicles"]
+            # new_vehicles = newStatus["vehicles"]
 
             old_driver_best = get_prop_map(old_vehicles, "bestLapTime")
-            new_driver_best = get_prop_map(new_vehicles, "bestLapTime")
+            # new_driver_best = get_prop_map(new_vehicles, "bestLapTime")
 
             for driver, new_best in old_driver_best.items():
                 old_best = old_driver_best[driver] if driver in old_driver_best else 0
