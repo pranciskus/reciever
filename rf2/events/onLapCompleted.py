@@ -2,8 +2,8 @@ from rf2.events import get_prop_map
 
 
 def onLapCompleted(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
-    old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles", [])
+    old_vehicles = oldStatus.get("vehicles", [])
 
     if not old_vehicles or not new_vehicles:
         return

@@ -13,8 +13,8 @@ def get_pit_status_map(drivers):
 
 
 def onPitStateChange(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
-    old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles")
+    old_vehicles = oldStatus.get("vehicles")
 
     if not old_vehicles or not new_vehicles:
         return
@@ -30,8 +30,8 @@ def onPitStateChange(oldStatus, newStatus, all_hooks):
 
 
 def onGarageToggle(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
-    old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles")
+    old_vehicles = oldStatus.get("vehicles")
 
     if not old_vehicles or not new_vehicles:
         return
@@ -49,8 +49,8 @@ def onGarageToggle(oldStatus, newStatus, all_hooks):
 
 
 def onPittingChange(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
-    old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles")
+    old_vehicles = oldStatus.get("vehicles")
 
     if not old_vehicles or not new_vehicles:
         return

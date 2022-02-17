@@ -17,7 +17,7 @@ def onNewBestLapTime(oldStatus, newStatus, all_hooks):
         overall_best_lap = None
         overall_best_time = None
 
-    new_vehicles = newStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles", [])
 
     if not new_vehicles:
         return
@@ -43,10 +43,10 @@ def onNewBestLapTime(oldStatus, newStatus, all_hooks):
 
 def onNewPersonalBest(oldStatus, newStatus, all_hooks):
     # FIXME: doesn't seem right
-    old_vehicles = oldStatus["vehicles"]
+    old_vehicles = oldStatus.get("vehicles", [])
     if not old_vehicles:
         return
-    # new_vehicles = newStatus["vehicles"]
+    # new_vehicles = newStatus.get("vehicles", [])
 
     old_driver_best = get_prop_map(old_vehicles, "bestLapTime")
     # new_driver_best = get_prop_map(new_vehicles, "bestLapTime")

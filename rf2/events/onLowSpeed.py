@@ -53,7 +53,7 @@ lag_warns = {}
 
 
 def onLowSpeed(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles", [])
 
     if not new_vehicles:
         return
@@ -80,8 +80,8 @@ def onLowSpeed(oldStatus, newStatus, all_hooks):
 
 
 def onSuspectedLag(oldStatus, newStatus, all_hooks):
-    new_vehicles = newStatus["vehicles"]
-    old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus.get("vehicles", [])
+    old_vehicles = oldStatus.get("vehicles", [])
 
     if not old_vehicles or not new_vehicles:
         return

@@ -2,8 +2,8 @@ from rf2.events import get_prop_map
 
 
 def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):
-    old_vehicles = oldStatus["vehicles"]
-    new_vehicles = newStatus["vehicles"]
+    old_vehicles = oldStatus.get("vehicles", [])
+    new_vehicles = newStatus.get("vehicles", [])
 
     if not old_vehicles or not new_vehicles:
         return
@@ -19,8 +19,8 @@ def onDriverPenaltyChange(oldStatus, newStatus, all_hooks):
 
 
 def onDriverPenaltyRevoke(oldStatus, newStatus, all_hooks):
-    old_vehicles = oldStatus["vehicles"]
-    new_vehicles = newStatus["vehicles"]
+    old_vehicles = oldStatus.get("vehicles", [])
+    new_vehicles = newStatus.get("vehicles", [])
 
     if not old_vehicles or not new_vehicles:
         return
@@ -36,8 +36,8 @@ def onDriverPenaltyRevoke(oldStatus, newStatus, all_hooks):
 
 
 def onDriverPenaltyAdd(oldStatus, newStatus, all_hooks):
-    old_vehicles = oldStatus["vehicles"]
-    new_vehicles = newStatus["vehicles"]
+    old_vehicles = oldStatus.get("vehicles", [])
+    new_vehicles = newStatus.get("vehicles", [])
 
     if not old_vehicles or not new_vehicles:
         return

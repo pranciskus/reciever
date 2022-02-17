@@ -27,6 +27,9 @@ if exists(RELEASE_FILE_PATH):
 
 
 def get_server_mod(server_config: dict) -> dict:
+    if not is_server_up(server_config):
+        return None
+
     target_url = "http://localhost:{}".format(get_server_port(server_config))
     try:
         mod_content = get(target_url + "/rest/race/car").json()
@@ -37,13 +40,13 @@ def get_server_mod(server_config: dict) -> dict:
 
 
 # TODO: we need even faster check
-def is_server_up(url):
+def is_server_up(server_config):
+    url = "http://localhost:{}".format(get_server_port(server_config))
     try:
         get(url=url, verify=False, timeout=0.5)
         return True
-    except Exception as e:
-        logger.error(str(e))
-        logger.warning(f"rF2 server is not running: {url}")
+    except Exception:
+        logger.info(f"rF2 server is not running: {url}")
         return False
 
 
@@ -130,7 +133,7 @@ def get_server_status(server_config: dict) -> dict:
     """
     target_url = "http://localhost:{}".format(get_server_port(server_config))
 
-    is_running = is_server_up(target_url)
+    is_running = is_server_up(server_config)
 
     SESSION_ID = None
     if exists(SESSION_ID_PATH):
@@ -145,15 +148,14 @@ def get_server_status(server_config: dict) -> dict:
     IS_UNLOCKED = isfile(UNLOCK_PATH)
 
     result = {
-        "not_running": not is_running,
+        "running": is_running,
         "keys": IS_UNLOCKED,
         "build": SERVER_VERSION,
         "release": RECIEVER_RELEASE,
         "session_id": SESSION_ID,
+        "in_deploy": exists(DELPOY_LOCK_PATH),
+        "skip_polling": False,
     }
-
-    if exists(DELPOY_LOCK_PATH):
-        result["in_deploy"] = True
 
     result["replays"] = (
         list(

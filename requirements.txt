@@ -3,4 +3,5 @@ pywinauto==0.6.8
 requests==2.25.1
 uiautomation==2.0.10
 waitress==2.0.0
+comtypes==1.1.11
 psutil

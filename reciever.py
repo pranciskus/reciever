@@ -1,7 +1,7 @@
 from flask import Flask, request, abort, send_file, jsonify
 from functools import wraps
 from rf2.startup import stop_server, oneclick_start_server
-from rf2.status import get_server_status, get_server_mod
+from rf2.status import get_server_status, get_server_mod, is_server_up
 from rf2.interaction import do_action, Action, kick_player, chat
 from rf2.deploy import (
     deploy_server,
@@ -225,8 +225,16 @@ def poll_background_status(all_hooks):
             # NOTE: nothing to do yet
             continue
 
+        config = get_server_config()
+
+        if not is_server_up(config):
+            # NOTE: if server is not running, but we were running in previous tick - proceed
+            if last_status is None or last_status.get("running") is False:
+                sleep(5)
+                continue
+
         try:
-            new_status = get_server_status(get_server_config())
+            new_status = get_server_status(config)
         except Exception as e:
             # NOTE: this shouldn't happen in any way
             logger.critical(str(e), exc_info=1)
@@ -236,8 +244,8 @@ def poll_background_status(all_hooks):
             last_status = new_status
             continue
 
-        if new_status["skip_polling"] is True:
-            # NOTE: if we had trouble getting newest server data - skip
+        if new_status.get("skip_polling") is True:
+            # NOTE: if we had trouble getting newest server data while running - skip tick
             continue
 
         event_hooks = set(RECIEVER_HOOK_EVENTS).difference(excluded_hooks)
@@ -247,11 +255,11 @@ def poll_background_status(all_hooks):
 
             hooks_to_run = all_hooks.get(event_name, [])
 
-            # TODO: hooks should have check logic
-            if new_status["not_running"] is True and event_name != "onStop":
-                # NOTE: if not_running, run only onStop hooks
-                logger.info("Skipping polling")
-                continue
+            # TODO: hooks should have this check logic
+            # if new_status["running"] is False and event_name != "onStop":
+            #     # NOTE: if not running, run only onStop hooks
+            #     logger.info("Skipping polling")
+            #     continue
 
             try:
                 event_hook(
@@ -346,9 +354,9 @@ def soft_lock_toggle():
 @app.route("/weather", methods=["POST"])
 def weather_update():
 
-    last_status = get_server_status(get_server_config())
+    status = get_server_status(get_server_config())
 
-    if last_status is not None and "not_running" not in last_status:
+    if status is not None and status["running"] is True:
         raise RecieverError("Server is running")
 
     # we ignore anything except session lists
@@ -388,13 +396,9 @@ def deploy_server_config():
         hooks.HOOKS["onStateChange"] if "onStateChange" in hooks.HOOKS else []
     )
 
-    last_status = get_server_status(get_server_config())
+    status = get_server_status(get_server_config())
 
-    if (
-        not never_deployed()
-        and last_status is not None
-        and "not_running" not in last_status
-    ):
+    if not never_deployed() and status is not None and status["running"] is True:
         onStateChange(
             "Deployment aborted as the server is still running", None, status_hooks
         )
