@@ -1,5 +1,5 @@
-from os.path import join, exists, basename, pathsep, dirname
-from os import listdir, mkdir, getenv, unlink, stat
+from os.path import join, exists, basename, dirname
+from os import listdir, mkdir, unlink, stat
 from shutil import copy, rmtree, copytree, move
 from rf2.steam import run_steamcmd, install_mod, get_steamcmd_path, find_source_path
 import subprocess
@@ -225,7 +225,7 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
             for line in templateLines:
                 hadReplacement = False
                 for key, value in replacementMap.items():
-                    pattern = r"(" + key + '\s{0,}=\s{0,}"?([^"^\n^\r]+)"?)'
+                    pattern = r"(" + key + r'\s{0,}=\s{0,}"?([^"^\n^\r]+)"?)'
                     matches = re.match(pattern, line, re.MULTILINE)
                     replacement = "{}={}\n".format(key, value)
                     if matches:
@@ -249,7 +249,7 @@ def generate_veh_templates(target_path: str, veh_templates: list, component_info
                     for line in template_lines:
                         line_to_add = None
                         for key, value in overwrites.items():
-                            pattern = r"(" + key + '\s{0,}=\s{0,}"?([^"^\n^\r]{0,})"?)'
+                            pattern = r"(" + key + r'\s{0,}=\s{0,}"?([^"^\n^\r]{0,})"?)'
                             matches = re.match(pattern, line)
                             use_quotes = '"' in line
                             if matches:
@@ -398,7 +398,9 @@ def deploy_server(
         logger.info("The mod version was parsed to {}".format(mod_info["version"]))
 
     if "%" in VERSION_SUFFIX or "%" in mod_info["version"]:
-        msg = "{} or {} was parsed not valid".format(VERSION_SUFFIX, mod_info["version"])
+        msg = "{} or {} was parsed not valid".format(
+            VERSION_SUFFIX, mod_info["version"]
+        )
         onStateChange("Create conditions failed", msg, status_hooks)
         logger.error(msg)
         raise Exception(msg)
@@ -450,7 +452,7 @@ def deploy_server(
                 key_path = join(root_path, "server", "UserData", "ServerUnlock.bin")
                 if not exists(key_path):
                     raise Exception(
-                        "Please add a keyfile to use paid content. See https://wiki.apx.chmr.eu/doku.php?id=troubleshooting#an_apx-created_complains_about_a_missing_key"
+                        "Please add a keyfile to use paid content. See https://wiki.apx.chmr.eu/doku.php?id=troubleshooting#an_apx-created_complains_about_a_missing_key"  # noqa: E501
                     )
             else:
                 logger.info(
@@ -474,7 +476,7 @@ def deploy_server(
             old_file = load(open(fingerprint_path, "r"))
             if old_file == fingerprints:
                 logger.warning(
-                    f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}"
+                    f"The fingerprints are equal. Triggering the deployment to fail hard. Old fingerprints: {old_file}, new fingerprints after running steam: {fingerprints}"  # noqa: E501
                 )
                 raise Exception("No mod files changed, aborted deployment.")
             else:
@@ -589,7 +591,7 @@ def deploy_server(
                 )
                 component_info["version"] = "latest"
                 logger.warn(
-                    f"User wants to include stock skins with own liveries. Using version {version} as the base version This will create an update on the update, causing to overlap other mods. THIS WILL CAUSE CONNECTION ISSUES!!!!!!!!!!"
+                    f"User wants to include stock skins with own liveries. Using version {version} as the base version This will create an update on the update, causing to overlap other mods. THIS WILL CAUSE CONNECTION ISSUES!!!!!!!!!!"  # noqa: E501
                 )
             logger.info("We will use {} as the base version".format(version))
             # the most recent version most likely contains the liveries, so we will use a separate version for extract and a different for the base mod
@@ -1181,7 +1183,7 @@ def create_conditions(
                                 )
                                 found_gripfile = True
                                 found_gripfile_name = file
-                        except:
+                        except Exception:
                             logger.warning(
                                 "Applying an regex for {} did not result in success".format(
                                     grip_needle
@@ -1200,7 +1202,7 @@ def create_conditions(
                             logger.info(f"Copied {source_path} to {autosave_path}")
                         else:
                             logger.info(
-                                "Session {} want's a preset become a auto save file, but the file is already existing. Doing nothing.".format(
+                                "Session {} want's a preset become a auto save file, but the file is already existing in {}. Doing nothing.".format(
                                     type, found_gripfile_name
                                 )
                             )
@@ -1230,12 +1232,14 @@ def get_latest_version(root_path: str, latest=True) -> str:
             )
         )
         return versions[0]
-    version_sort_failed = False
+    # version_sort_failed = False
     try:
         versions.sort(key=LooseVersion)
-    except:
+    except Exception as e:
         versions = True
-        logger.error("Version sort failed. Falling back to filesystem sorting")
+        logger.error(
+            f"Version sort failed. Falling back to filesystem sorting. Reason: {str(e)}"
+        )
         versions.sort()
     if len(versions) == 0:
         raise Exception("There are no versions to choose from")
@@ -1358,7 +1362,7 @@ def build_mod(
                 layouts_string = layouts_string + '"' + f'{layout_text},1"'
             desired_layout = track["layout"]
             logger.info(
-                f"We don't found the desired layout in the gdb layout list. Enabling all tracks. Desired layout name is {desired_layout}, track list is {layouts}"
+                f"We don't found the desired layout in the gdb layout list. Enabling all tracks. Desired layout name is {desired_layout}, track list is {layouts}"  # noqa: E501
             )
 
         line = line + layouts_string
@@ -1468,9 +1472,9 @@ def build_cmp_mod(
 
     update_version = version + VERSION_SUFFIX
 
-    base_target_path = join(
-        root_path, f"server\\Installed\\{packageType}\\{name}\\{version}"
-    )
+    # base_target_path = join(
+    #     root_path, f"server\\Installed\\{packageType}\\{name}\\{version}"
+    # )
     target_path = join(
         root_path, f"server\\Installed\\{packageType}\\{name}\\{update_version}"
     )
@@ -1536,10 +1540,10 @@ def restore_vanilla(server_config: dict) -> bool:
     # Overwrite player.json and multiplayer.json
     user_data_path = join(server_root_path, "UserData")
     profile_path = join(user_data_path, "player")
-    copied_player = copy(
-        join(reciever_root_path, "templates", "player.JSON"),
-        join(profile_path, "player.JSON"),
-    )
+    # copied_player = copy(
+    #     join(reciever_root_path, "templates", "player.JSON"),
+    #     join(profile_path, "player.JSON"),
+    # )
     copy(
         join(reciever_root_path, "templates", "Multiplayer.JSON"),
         join(profile_path, "Multiplayer.JSON"),
@@ -1601,7 +1605,7 @@ def restore_vanilla(server_config: dict) -> bool:
 
     if (
         "remove_settings" in server_config["mod"]
-        and server_config["mod"]["remove_settings"] == True
+        and server_config["mod"]["remove_settings"] is True
     ):
         folder_paths[join(user_data_path, "player", "Settings")] = []
         logger.info(
@@ -1612,7 +1616,7 @@ def restore_vanilla(server_config: dict) -> bool:
 
     if (
         "remove_cbash_shaders" in server_config["mod"]
-        and server_config["mod"]["remove_cbash_shaders"] == True
+        and server_config["mod"]["remove_cbash_shaders"] is True
     ):
         folder_paths[join(user_data_path, "Log")] = ["CBash", "Results", "Shaders"]
         logger.info(
@@ -1731,7 +1735,7 @@ def build_mas(server_config: dict, source_path: str, target_path: str):
     """
     root_path = server_config["server"]["root_path"]
 
-    files_to_add = listdir(source_path)
+    # files_to_add = listdir(source_path)
     cmd_line = (
         f"{root_path}\\server\\Bin64\\ModMgr.exe -m"
         + target_path
@@ -1850,7 +1854,7 @@ def find_weather_and_gdb_files(root_path: str, mod_name):
     modmgr_path = join(root_path, "server", "Bin64\\ModMgr.exe")
     mod_root_path = join(root_path, "server", "Installed", "locations", mod_name)
     mod_versions = listdir(mod_root_path)
-    server_root_path = join(root_path, "server")
+    # server_root_path = join(root_path, "server")
     file_map = {}
     for version in mod_versions:
         mod_version_path = join(mod_root_path, version)

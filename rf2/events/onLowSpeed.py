@@ -1,5 +1,4 @@
 from math import sqrt
-from sys import exc_info
 from rf2.events import (
     LOW_SPEED_THRESHOLD,
     STATUS_INTERVALS_FOR_LOW_SPEED_HOOK,
@@ -54,61 +53,61 @@ lag_warns = {}
 
 
 def onLowSpeed(oldStatus, newStatus, all_hooks):
-    if "vehicles" in oldStatus and "vehicles" in newStatus:
-        new_vehicles = newStatus["vehicles"]
+    new_vehicles = newStatus["vehicles"]
 
-        new_driver_speed = get_speed(new_vehicles)
+    if not new_vehicles:
+        return
 
-        for driver, speed in new_driver_speed.items():
-            if speed["speed"] < LOW_SPEED_THRESHOLD:
-                if driver not in warns:
-                    warns[driver] = 0
-                warns[driver] = warns[driver] + 1
-                if warns[driver] > STATUS_INTERVALS_FOR_LOW_SPEED_HOOK:
-                    for hook in all_hooks:
-                        hook(
-                            driver,
-                            speed["speed"],
-                            speed["lapDistance"],
-                            speed["nearby"],
-                            speed["teamName"],
-                            speed["additional"],
-                            newStatus,
-                        )
-                    del warns[driver]
+    new_driver_speed = get_speed(new_vehicles)
+
+    for driver, speed in new_driver_speed.items():
+        if speed["speed"] < LOW_SPEED_THRESHOLD:
+            if driver not in warns:
+                warns[driver] = 0
+            warns[driver] = warns[driver] + 1
+            if warns[driver] > STATUS_INTERVALS_FOR_LOW_SPEED_HOOK:
+                for hook in all_hooks:
+                    hook(
+                        driver,
+                        speed["speed"],
+                        speed["lapDistance"],
+                        speed["nearby"],
+                        speed["teamName"],
+                        speed["additional"],
+                        newStatus,
+                    )
+                del warns[driver]
 
 
 def onSuspectedLag(oldStatus, newStatus, all_hooks):
-    if "vehicles" in oldStatus and "vehicles" in newStatus:
-        new_vehicles = newStatus["vehicles"]
-        old_vehicles = oldStatus["vehicles"]
+    new_vehicles = newStatus["vehicles"]
+    old_vehicles = oldStatus["vehicles"]
 
-        new_driver_speed = get_speed(new_vehicles)
-        old_driver_speed = get_speed(old_vehicles)
-        try:
-            for driver, speed in new_driver_speed.items():
-                old_speed = (
-                    old_driver_speed[driver]["speed"]
-                    if driver in old_driver_speed
-                    else 0
-                )
-                speed_difference = abs(speed["speed"] - old_speed)
-                if speed_difference > LAG_DIFFERENCE_THRESHOLD:
-                    if driver not in lag_warns:
-                        lag_warns[driver] = 0
-                    lag_warns[driver] = lag_warns[driver] + 1
-                    if lag_warns[driver] > STATUS_INTERVALS_FOR_LOW_SPEED_HOOK:
-                        for hook in all_hooks:
-                            hook(
-                                driver,
-                                speed["speed"],
-                                old_speed,
-                                speed["lapDistance"],
-                                speed["nearby"],
-                                speed["teamName"],
-                                speed["additional"],
-                                newStatus,
-                            )
-                        del lag_warns[driver]
-        except Exception as e:
-            logger.error(e, exc_info=1)
+    if not old_vehicles or not new_vehicles:
+        return
+
+    new_driver_speed = get_speed(new_vehicles)
+    old_driver_speed = get_speed(old_vehicles)
+
+    for driver, speed in new_driver_speed.items():
+        old_speed = (
+            old_driver_speed[driver]["speed"] if driver in old_driver_speed else 0
+        )
+        speed_difference = abs(speed["speed"] - old_speed)
+        if speed_difference > LAG_DIFFERENCE_THRESHOLD:
+            if driver not in lag_warns:
+                lag_warns[driver] = 0
+            lag_warns[driver] = lag_warns[driver] + 1
+            if lag_warns[driver] > STATUS_INTERVALS_FOR_LOW_SPEED_HOOK:
+                for hook in all_hooks:
+                    hook(
+                        driver,
+                        speed["speed"],
+                        old_speed,
+                        speed["lapDistance"],
+                        speed["nearby"],
+                        speed["teamName"],
+                        speed["additional"],
+                        newStatus,
+                    )
+                del lag_warns[driver]

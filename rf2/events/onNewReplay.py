@@ -1,7 +1,8 @@
 def onNewReplay(oldStatus, newStatus, all_hooks):
-    if "results" in oldStatus and "results" in newStatus:
-        old_results = oldStatus["results"]
-        new_results = newStatus["results"]
-        if len(old_results) != len(new_results):
-            for hook in all_hooks:
-                hook(old_results, new_results, newStatus)
+    if not oldStatus["replays"] or not newStatus["replays"]:
+        return
+    old_replays = oldStatus["replays"]
+    new_replays = newStatus["replays"]
+    if len(old_replays) != len(new_replays):
+        for hook in all_hooks:
+            hook(old_replays, new_replays, newStatus)

@@ -1,13 +1,11 @@
 from os.path import join, exists, sep
-from os import getcwd, mkdir, pardir
-from time import sleep
+from os import getcwd, mkdir
 from json import load, dumps, loads
 from random import randint
 import secrets
 import string
 import socket
 from pathlib import Path
-from requests import get
 from rf2.setup import install_server
 from sys import platform
 import logging
@@ -20,7 +18,7 @@ def get_main_window(server_config: dict):
     """
     Get the server main window
 
-    This is not  available on Linux.
+    This is not available on Linux.
 
     Args:
         server_config: The global configuration for this instance
@@ -31,6 +29,7 @@ def get_main_window(server_config: dict):
     if platform != "win32":
         raise Exception("This feature is not supported on Linux")
     from pywinauto import Desktop
+
     root_path = server_config["server"]["root_path"]
     server_root_path = join(root_path, "server") + "\\"
     dialog = Desktop(backend="win32").window(title=server_root_path)
@@ -97,7 +96,7 @@ def get_free_tcp_port(max_tries=10, default_port=8000):
             s.connect(("localhost", int(port)))
             s.shutdown(2)
             port = randint(port, 65534)
-        except:
+        except Exception:
             break
     return port
 
@@ -118,11 +117,13 @@ def create_config():
     if exists(reciever_path):
         root_path = str(Path(reciever_path).parent.parent.absolute())
     while not exists(reciever_path):
-        logger.info("The current working directory does not contain the files we expected")
+        logger.info(
+            "The current working directory does not contain the files we expected"
+        )
         logger.info("We expect following folder structure")
-        logger.info("\server")
+        logger.info("\\server")
         logger.info("\\reciever")
-        logger.info("\steamcmd")
+        logger.info("\\steamcmd")
         logger.info("\\build")
         root_path = input("Name the correct directory which contains the folders: ")
         reciever_path = join(root_path, "reciever", "reciever.py")

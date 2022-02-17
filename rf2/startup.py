@@ -2,21 +2,27 @@ from os.path import join, exists
 from os import remove
 from time import sleep
 from rf2.util import (
-    get_server_port,
+    # get_server_port,
     get_max_players,
 )
 from rf2.interaction import chat, do_action, Action
-from rf2.deploy import update_weather
+
+# from rf2.deploy import update_weather
 import logging
 from string import ascii_uppercase, digits
 from random import choice
 from psutil import process_iter
 import tarfile
 from sys import platform
+
 if platform == "linux":
     from rf2.wine import Popen
 else:
     from subprocess import Popen
+
+
+logger = logging.getLogger(__name__)
+
 
 def oneclick_start_server(server_config: dict, files: dict) -> bool:
     root_path = server_config["server"]["root_path"]
@@ -54,23 +60,24 @@ def oneclick_start_server(server_config: dict, files: dict) -> bool:
             file.write("[SETTINGS]\n")
             file.write("MaxClients=" + str(max_clients_overwrite) + "\n")
             file.write("[TRACKS]\n")
-        
+
         if platform == "win32":
             from subprocess import HIGH_PRIORITY_CLASS
+
             Popen(server_binary_commandline, creationflags=HIGH_PRIORITY_CLASS)
         else:
             Popen(server_binary_commandline)
         if server_config["mod"]["real_weather"]:
             # start the weather_client
-            weather_client_root = join(server_config["server"]["root_path"], "weatherclient")
-            weather_command_line =  join(weather_client_root, "rf2WeatherClient.exe")
+            weather_client_root = join(
+                server_config["server"]["root_path"], "weatherclient"
+            )
+            weather_command_line = join(weather_client_root, "rf2WeatherClient.exe")
             Popen(weather_command_line, cwd=weather_client_root)
 
-
     except Exception as e:
-        from traceback import print_exc
+        logger.error(str(e), exc_info=1)
 
-        print_exc()
     # generate files for APX clients
     output_filename = join(root_path, "modpack.tar.gz")
     with tarfile.open(output_filename, "w:gz") as tar:
@@ -129,7 +136,9 @@ def stop_server(server_config: dict) -> bool:
 
     root_path = join(server_config["server"]["root_path"], "server")
     binary_path = join(root_path, "Bin64", "rFactor2 Dedicated.exe")
-    weather_binary_path = join(server_config["server"]["root_path"], "weatherclient", "rf2WeatherClient.exe")
+    weather_binary_path = join(
+        server_config["server"]["root_path"], "weatherclient", "rf2WeatherClient.exe"
+    )
     chat(server_config, "Server is shutting down NOW")
     do_action(server_config, Action.RESTARTWEEKEND)
     sleep(5)  # Give the server a chance to react
@@ -147,7 +156,7 @@ def stop_server(server_config: dict) -> bool:
             if exe == weather_binary_path:
                 proc.kill()
                 weatherclient_killed = True
-        
+
         if server_killed and weatherclient_killed:
             return True
     return False

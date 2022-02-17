@@ -6,6 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class Action(Enum):
     RESTARTWEEKEND = "<< Restart Weekend"
     RESTARTRACE = "< Restart Race"
@@ -25,11 +26,10 @@ def chat(server_config: dict, message: str):
     if len(message) > 50:
         raise Exception("Message to long")
 
-    target_url = "http://localhost:{}/rest/chat".format(
-        get_server_port(server_config))
+    target_url = "http://localhost:{}/rest/chat".format(get_server_port(server_config))
 
     try:
-        got = post(target_url, data=message)
+        post(target_url, data=message)
     except Exception as e:
         logger.error(e, exc_info=1)
 
@@ -41,8 +41,7 @@ def do_action(server_config: dict, action: Action):
 
 def kick_player(server_config: dict, name: str):
     dialog = get_main_window(server_config)
-    player_list = dialog.window(
-        best_match='ListBox0:ListBox')
+    player_list = dialog.window(best_match="ListBox0:ListBox")
 
     players = player_list.item_texts()
     for key, value in enumerate(players):

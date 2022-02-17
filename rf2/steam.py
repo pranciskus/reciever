@@ -1,6 +1,6 @@
 import subprocess
 from os.path import join, exists, dirname
-from os import listdir, unlink
+from os import listdir
 from shutil import copy
 import tempfile
 from pathlib import Path
@@ -74,7 +74,7 @@ def run_steamcmd(server_config: dict, command: str, arg: str = None) -> bool:
         p = subprocess.Popen(command_line, shell=True, stderr=subprocess.PIPE)
         while True:
             out = p.stderr.read(1).decode("utf-8")
-            if out == "" and p.poll() != None:
+            if out == "" and p.poll() is not None:
                 break
             if out != "":
                 sys.stdout.flush()
@@ -228,6 +228,7 @@ def get_entries_from_mod(root_path, component_name: str, version: str):
                     entries.append(description)
     return entries
 
+
 def find_source_path(root_path: str, component_name: str):
     source_path = None
     if "server_children" in root_path:
@@ -247,6 +248,7 @@ def find_source_path(root_path: str, component_name: str):
         source_path = join(root_path, "items", component_name)
     return source_path
 
+
 def install_mod(server_config: dict, id: int, component_name: str) -> bool:
     root_path = server_config["server"]["root_path"]
     source_path = None
@@ -259,7 +261,9 @@ def install_mod(server_config: dict, id: int, component_name: str) -> bool:
         source_path = find_source_path(root_path, component_name)
     if component_name is not None:
         logger.info(
-            "Choosing source path {} for component {}".format(source_path, component_name)
+            "Choosing source path {} for component {}".format(
+                source_path, component_name
+            )
         )
 
     files = (

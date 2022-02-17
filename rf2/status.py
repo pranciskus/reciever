@@ -10,7 +10,7 @@ from os import listdir
 logger = logging.getLogger(__name__)
 
 
-ROOT_PATH = Path(__file__).parent.parent.absolute()
+ROOT_PATH = Path(__file__).parent.parent.parent.absolute()
 UNLOCK_PATH = join(ROOT_PATH, "server", "UserData", "ServerUnlock.bin")
 RELEASE_FILE_PATH = join(ROOT_PATH, "reciever", "release")
 VERSION_TXT_PATH = join(ROOT_PATH, "server", "Core", "Version.txt")
@@ -25,11 +25,6 @@ if exists(RELEASE_FILE_PATH):
     with open(RELEASE_FILE_PATH, "r") as f:
         RECIEVER_RELEASE = f.read()
 
-SERVER_VERSION = None
-if exists(VERSION_TXT_PATH):
-    with open(VERSION_TXT_PATH, "r") as f:
-        SERVER_VERSION = f.readlines()[0].strip()
-
 
 def get_server_mod(server_config: dict) -> dict:
     target_url = "http://localhost:{}".format(get_server_port(server_config))
@@ -41,8 +36,87 @@ def get_server_mod(server_config: dict) -> dict:
         return None
 
 
-# TODO: is alive ping check is necessary - too many calls when the server is down
+# TODO: we need even faster check
+def is_server_up(url):
+    try:
+        get(url=url, verify=False, timeout=0.5)
+        return True
+    except Exception as e:
+        logger.error(str(e))
+        logger.warning(f"rF2 server is not running: {url}")
+        return False
+
+
+def get_server_endpoint_data(url, empty_response):
+    try:
+        data = get(url, verify=False).json()
+
+        if "error" in data:
+            logging.warning(f"rf2 server endpoint {url} error: {data}")
+            return empty_response, True
+
+        return data, False
+
+    except RequestException as e:
+        logging.warning(e)
+        return empty_response, True
+
+    except JSONDecodeError as e:
+        logging.warning(e)
+        return empty_response, True
+
+    except Exception as e:
+        logger.error(e, exc_info=1)
+        return empty_response, True
+
+
 # TODO: refactor this for better performance - asyncio?
+# NOTE: on server start and session change some fields get populated with a delay
+# Trying to get all available data, another option -> implement some caching and have update logic
+def get_server_live_data(url):
+    status, status_error = get_server_endpoint_data(
+        url + "/rest/watch/sessionInfo", dict()
+    )
+    standings, standings_error = get_server_endpoint_data(
+        url + "/rest/watch/standings", list()
+    )
+    waypoints, waypoints_error = get_server_endpoint_data(
+        url + "/navigation/state", dict()
+    )
+    session, session_error = get_server_endpoint_data(url + "/rest/sessions", dict())
+
+    has_error = any([status_error, standings_error, waypoints_error, session_error])
+
+    result = {
+        "skip_polling": has_error,
+        "track": status.get("trackName"),
+        "name": status.get("serverName"),
+        "startEventTime": status.get("startEventTime"),
+        "currentEventTime": status.get("currentEventTime"),
+        "endEventTime": status.get("endEventTime"),
+        "flags": status.get("sectorFlag"),
+        "maxLaps": status.get("maximumLaps"),
+        "session": status.get("session"),
+        "vehicles": standings,
+        "weather": {
+            "ambient": status.get("ambientTemp"),
+            "track": status.get("trackTemp"),
+            "rain": {
+                "min": status.get("minPathWetness"),
+                "avg": status.get("averagePathWetness"),
+                "max": status.get("maxPathWetness"),
+                "raining": status.get("raining"),
+                "dark_cloud": status.get("darkCloud"),
+            },
+        },
+        "waypoints": waypoints,
+        "race_time": session.get("SESSSET_race_time", {}).get("currentValue", 0) * 60,
+        "time_completion": status.get("raceCompletion", {}).get("timeCompletion"),
+    }
+
+    return result
+
+
 # TODO: diferent outputs for polling and API - e.g. full=True
 def get_server_status(server_config: dict) -> dict:
     """
@@ -56,84 +130,30 @@ def get_server_status(server_config: dict) -> dict:
     """
     target_url = "http://localhost:{}".format(get_server_port(server_config))
 
-    is_unlocked = isfile(UNLOCK_PATH)
+    is_running = is_server_up(target_url)
 
-    session_id = None
-
+    SESSION_ID = None
     if exists(SESSION_ID_PATH):
         with open(SESSION_ID_PATH, "r") as file:
-            session_id = file.read()
+            SESSION_ID = file.read()
 
-    result = None
+    SERVER_VERSION = None
+    if exists(VERSION_TXT_PATH):
+        with open(VERSION_TXT_PATH, "r") as f:
+            SERVER_VERSION = f.readlines()[0].strip()
 
-    status_raw = {}
-    standings_raw = {}
-    waypoints = {}
-    session_info_raw = {}
+    IS_UNLOCKED = isfile(UNLOCK_PATH)
 
-    try:
-        status_raw = get(target_url + "/rest/watch/sessionInfo").json()
-        standings_raw = get(target_url + "/rest/watch/standings").json()
-        waypoints = get(target_url + "/navigation/state").json()
-        session_info_raw = get(target_url + "/rest/sessions").json()
+    result = {
+        "not_running": not is_running,
+        "keys": IS_UNLOCKED,
+        "build": SERVER_VERSION,
+        "release": RECIEVER_RELEASE,
+        "session_id": SESSION_ID,
+    }
 
-        # Note: on server start and session change some fields get populated with a delay
-        # Trying to get all available data, another option -> implement some caching and have update logic
-
-        result = {
-            "track": status_raw.get("trackName"),
-            "name": status_raw.get("serverName"),
-            "startEventTime": status_raw.get("startEventTime"),
-            "currentEventTime": status_raw.get("currentEventTime"),
-            "endEventTime": status_raw.get("endEventTime"),
-            "flags": status_raw.get("sectorFlag"),
-            "maxLaps": status_raw.get("maximumLaps"),
-            "session": status_raw.get("session"),
-            "vehicles": standings_raw,
-            "keys": is_unlocked,
-            "build": SERVER_VERSION,
-            "release": RECIEVER_RELEASE,
-            "session_id": session_id,
-            "weather": {
-                "ambient": status_raw.get("ambientTemp"),
-                "track": status_raw.get("trackTemp"),
-                "rain": {
-                    "min": status_raw.get("minPathWetness"),
-                    "avg": status_raw.get("averagePathWetness"),
-                    "max": status_raw.get("maxPathWetness"),
-                    "raining": status_raw.get("raining"),
-                    "dark_cloud": status_raw.get("darkCloud"),
-                },
-            },
-            "waypoints": waypoints,
-            "race_time": session_info_raw.get("SESSSET_race_time", {}).get(
-                "currentValue", 0
-            )
-            * 60,
-            "time_completion": status_raw.get("raceCompletion", {}).get(
-                "timeCompletion"
-            ),
-        }
-
-    # FIXME: if server isn't running this logic shouldn't be running
-    except RequestException as e:
-        logging.warning(e)
-        result = None  # do nothing, if the server is not running
-    except JSONDecodeError as e:
-        logging.warning(e)
-        result = None  # do nothing, if the server is not running
-    except Exception as e:
-        logger.error(e, exc_info=1)
-        result = None
-
-    if not result:
-        result = {
-            "not_running": True,
-            "keys": is_unlocked,
-            "release": RECIEVER_RELEASE,
-        }
-        if exists(DELPOY_LOCK_PATH):
-            result["in_deploy"] = True
+    if exists(DELPOY_LOCK_PATH):
+        result["in_deploy"] = True
 
     result["replays"] = (
         list(
@@ -145,10 +165,15 @@ def get_server_status(server_config: dict) -> dict:
         if exists(REPLAYS_PATH)
         else []
     )
+
     result["results"] = (
         list(filter(lambda x: "xml" in x, listdir(RESULTS_PATH)))
         if exists(RESULTS_PATH)
         else []
     )
+
+    if is_running:
+        live_data = get_server_live_data(target_url)
+        result = {**result, **live_data}
 
     return result

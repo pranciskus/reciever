@@ -1,4 +1,4 @@
 def onStop(oldStatus, newStatus, all_hooks):
-    if "not_running" in newStatus and "not_running" not in oldStatus:
+    if newStatus.get("not_running") is True and oldStatus.get("not_running") is False:
         for hook in all_hooks:
             hook(newStatus)

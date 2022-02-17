@@ -228,12 +228,16 @@ def poll_background_status(all_hooks):
         try:
             new_status = get_server_status(get_server_config())
         except Exception as e:
-            logger.error(str(e), exc_info=1)
+            # NOTE: this shouldn't happen in any way
+            logger.critical(str(e), exc_info=1)
             continue
 
-        if new_status is None or last_status is None:
-            # TODO: don't have enough data to call hooks ??? Ask Gunther
+        if last_status is None:
             last_status = new_status
+            continue
+
+        if new_status["skip_polling"] is True:
+            # NOTE: if we had trouble getting newest server data - skip
             continue
 
         event_hooks = set(RECIEVER_HOOK_EVENTS).difference(excluded_hooks)
@@ -243,8 +247,10 @@ def poll_background_status(all_hooks):
 
             hooks_to_run = all_hooks.get(event_name, [])
 
-            if "not_running" in new_status and event_name != "onStop":
+            # TODO: hooks should have check logic
+            if new_status["not_running"] is True and event_name != "onStop":
                 # NOTE: if not_running, run only onStop hooks
+                logger.info("Skipping polling")
                 continue
 
             try:
@@ -265,12 +271,9 @@ def status():
 
     status = get_server_status(get_server_config())
 
-    if status:
-        status["mod_content"] = get_server_mod(get_server_config())
+    status["mod_content"] = get_server_mod(get_server_config())
 
-        return json_response(status), 200
-
-    return json_response({}), 200
+    return json_response(status), 200
 
 
 @app.route("/oneclick_start_server", methods=["GET"])
