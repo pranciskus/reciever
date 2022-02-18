@@ -273,7 +273,6 @@ def poll_background_status(all_hooks):
         last_status = new_status
 
 
-# TODO: read from file last_status
 @app.route("/status", methods=["GET"])
 def status():
 
@@ -830,23 +829,29 @@ def get_signatures():
     return json_response(signature_build())
 
 
-if __name__ == "__main__":
-
+def server_run_permissions_check():
     # check for correct user
     if platform == "win32":
         import win32net
 
         groups = win32net.NetUserGetLocalGroups("localhost", getlogin())
         assumed_admin = False
+
         for group in groups:
             # the group name is dependending on the locale, but it may be sufficient to check for contains of "admin"
             if "admin" in group.lower():
                 assumed_admin = True
                 break
+
         if assumed_admin and "--admin" not in argv:
             raise Exception(
                 "The reciever cannot be run as administrator. Use a dedicated user"
             )
+
+
+if __name__ == "__main__":
+
+    server_run_permissions_check()
 
     # debug only: add a new server.json per argv
     server_config_path = str(Path(__file__).absolute()).replace(
@@ -867,7 +872,6 @@ if __name__ == "__main__":
     root_path = webserver_config["root_path"]
     reciever_path = join(root_path, "reciever")
 
-    # TODO: quit if no Mainifests??? refactor as a function
     manifests_source_path = join(root_path, "server", "Manifests")
     manifests_target_path = join(reciever_path, "templates", "Manifests")
     if not exists(manifests_target_path):
@@ -880,7 +884,6 @@ if __name__ == "__main__":
     else:
         logger.info(f"Manifests found in: {manifests_target_path}")
 
-    # TODO: quit if no Installed??? refactor as a function
     installed_source_path = join(root_path, "server", "Installed")
     installed_target_path = join(reciever_path, "templates", "Installed")
     if not exists(installed_target_path):
