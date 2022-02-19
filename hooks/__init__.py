@@ -31,8 +31,9 @@ HOOKS = {}
 def register(event, hooks, func):
     if event not in hooks:
         hooks[event] = []
-    hooks[event].append(func)
-    logger.info("Registered hook {} for event {}".format(func.__name__, event))
+    if func not in hooks[event]:
+        hooks[event].append(func)
+        logger.info("Registered hook {} for event {}".format(func.__name__, event))
 
 
 register("onNewBestLapTime", HOOKS, best_lap)

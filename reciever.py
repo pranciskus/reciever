@@ -90,7 +90,10 @@ RECIEVER_HOOK_EVENTS = [
 ]
 
 logging.basicConfig(
-    handlers=[RotatingFileHandler("reciever.log", maxBytes=1000000, backupCount=5)],
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler("reciever.log", maxBytes=1000000, backupCount=5),
+    ],
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(threadName)s [%(funcName)s]: %(message)s",
 )
@@ -126,7 +129,7 @@ def handle_reciever_error(error):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return json_response({"message": "Not found"}), 404
+    return jsonify({"message": "Not found"}), 404
 
 
 @app.after_request
@@ -157,9 +160,7 @@ def read_webserver_config() -> dict:
         config = loads(file.read())
 
     # FIXME: temporary fix for hardcoded path
-    if config.get("root_path", None) is not None:
-        root_path = Path(__file__).parent.parent.absolute()
-        config["root_path"] = root_path
+    config["root_path"] = ROOT_PATH
 
     return config
 
@@ -201,8 +202,8 @@ def check_api_key(f):
     return decorated_function
 
 
-def json_response(data) -> str:
-    return jsonify(data)
+# def json_response(data) -> str:
+#     return jsonify(data)
 
 
 # NOTE: is this really necessary at current project state? for real time data this kind of polling solution isn't the best
@@ -280,7 +281,7 @@ def status():
 
     status["mod_content"] = get_server_mod(get_server_config())
 
-    return json_response(status), 200
+    return jsonify(status), 200
 
 
 @app.route("/oneclick_start_server", methods=["GET"])
@@ -294,13 +295,13 @@ def start_oneclick():
     if not got:
         raise RecieverError("The server could not be started")
 
-    return json_response({"is_ok": got}), 200
+    return jsonify({"is_ok": got}), 200
 
 
 @app.route("/stop", methods=["GET"])
 @check_api_key
 def stop():
-    return json_response({"is_ok": stop_server(get_server_config())}), 200
+    return jsonify({"is_ok": stop_server(get_server_config())}), 200
 
 
 @app.route("/action/<action>", methods=["POST"])
@@ -312,7 +313,7 @@ def action(action: str):
             do_action(get_server_config(), Action[key].value)
             is_ok = True
             break
-    return json_response({"is_ok": is_ok})
+    return jsonify({"is_ok": is_ok})
 
 
 @app.route("/kick", methods=["POST"])
@@ -324,7 +325,7 @@ def kick():
         raise RecieverError("Driver name not provided")
     kick_player(get_server_config(), name)
     is_ok = True
-    return json_response({"is_ok": is_ok})
+    return jsonify({"is_ok": is_ok})
 
 
 @app.route("/chat", methods=["POST"])
@@ -336,7 +337,7 @@ def send_message():
         raise RecieverError("Message not provided")
 
     chat(get_server_config(), message)
-    return json_response({"is_ok": True})
+    return jsonify({"is_ok": True})
 
 
 def soft_lock_toggle():
@@ -367,7 +368,7 @@ def weather_update():
     layout = track["layout"]
     if config["mod"]["real_weather"]:
         update_weather(config["server"]["root_path"], data["sessions"], name, layout)
-    return json_response({"is_ok": False})
+    return jsonify({"is_ok": False})
 
 
 @app.route("/update", methods=["GET"])
@@ -384,7 +385,7 @@ def update_server():
     )
     update_server_only(server_config)
     onStateChange(f"Update finished (branch: {branch})", None, status_hooks)
-    return json_response({"is_ok": True})
+    return jsonify({"is_ok": True})
 
 
 @app.route("/deploy", methods=["POST"])
@@ -412,9 +413,7 @@ def deploy_server_config():
         raise RecieverError("Config not provided")
 
     server_config = get_server_config()
-    release_file_path = join(
-        server_config["server"]["root_path"], "reciever", "release"
-    )
+    release_file_path = join(ROOT_PATH, "reciever", "release")
     try:
         got = loads(config_contents)
         version = open(release_file_path, "r").read()
@@ -479,7 +478,7 @@ def deploy_server_config():
         )
         onDeploy(None, None, event_hooks_to_run)  # call the hook
 
-    return json_response({"is_ok": False})
+    return jsonify({"is_ok": False})
 
 
 @app.route("/process_results", methods=["GET"])
@@ -487,7 +486,7 @@ def return_processed_results():
     raise RecieverError("process_results() not implemented")
     # TODO: no process_results function???
     # got = process_results()
-    # return json_response(got)
+    # return jsonify(got)
 
 
 @app.route("/thumbs", methods=["GET"])
@@ -539,7 +538,7 @@ def get_skins():
 
         unpack_archive(skinpack_path, target_path)
         unlink(skinpack_path)
-    return json_response({"is_ok": True})
+    return jsonify({"is_ok": True})
 
 
 @app.route("/plugins", methods=["POST"])
@@ -628,13 +627,14 @@ def install_plugins():
         }
     with open(plugin_config_path, "w") as file:
         file.write(dumps(plugin_config))
-    return json_response({"is_ok": True})
+
+    return jsonify({"is_ok": True})
 
 
 @app.route("/install", methods=["GET"])
 def initial_setup():
     got = install_server(get_server_config())
-    return json_response({"is_ok": got})
+    return jsonify({"is_ok": got})
 
 
 @app.route("/lockfile", methods=["GET"])
@@ -741,7 +741,7 @@ def get_file(component: str, version: str, file: str):
 @app.route("/mod", methods=["GET"])
 def get_mod():
     got = get_public_mod_info()
-    return json_response(got)
+    return jsonify(got)
 
 
 @app.route("/download", methods=["GET"])
@@ -758,14 +758,12 @@ def download_files():
 
 
 def signature_build():
-    # FIXME: why two same calls?
     raw_mod = get_public_mod_info()
-    got = get_public_mod_info()
 
-    if got is None:
+    if raw_mod is None:
         raise RecieverError("Mod info not found")
 
-    mod = got["mod"]["mod"]
+    mod = raw_mod["mod"]["mod"]
     version = mod["version"]
     name = mod["name"]
     webserver_config = read_webserver_config()
@@ -826,7 +824,7 @@ def signature_build():
 
 @app.route("/signatures", methods=["GET"])
 def get_signatures():
-    return json_response(signature_build())
+    return jsonify(signature_build())
 
 
 def server_run_permissions_check():
@@ -843,79 +841,96 @@ def server_run_permissions_check():
                 assumed_admin = True
                 break
 
+        # FIXME: argv variable does not change anything here
         if assumed_admin and "--admin" not in argv:
             raise Exception(
                 "The reciever cannot be run as administrator. Use a dedicated user"
             )
 
 
+def server_copy_manifests():
+    if not exists(RECIEVER_MAFIFESTS_PATH):
+        logger.info(f"Copying Manifests from: {SERVER_MANIFESTS_PATH}")
+        try:
+            copytree(SERVER_MANIFESTS_PATH, RECIEVER_MAFIFESTS_PATH)
+            logger.info(f"Created Manifests in: {RECIEVER_MAFIFESTS_PATH}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Manifests. Reason: {str(e)}")
+    else:
+        logger.info(f"Manifests found in: {RECIEVER_MAFIFESTS_PATH}")
+
+
+def server_copy_installed():
+    if not exists(RECIEVER_INSTALLED_PATH):
+        logger.info(f"Copying Installed from: {SERVER_INSTALLED_PATH}")
+        try:
+            copytree(SERVER_INSTALLED_PATH, RECIEVER_INSTALLED_PATH)
+            logger.info(f"Created Installed in: {RECIEVER_INSTALLED_PATH}")
+        except FileNotFoundError as e:
+            logger.error(f"Failed to copy Installed. Reason: {str(e)}")
+    else:
+        logger.info(f"Installed found in: {RECIEVER_INSTALLED_PATH}")
+
+
+def server_start_polling():
+    logger.info("Starting background polling process")
+    status_thread = Thread(
+        target=poll_background_status, args=(hooks.HOOKS,), daemon=True
+    )
+    status_thread.start()
+
+
+# TODO: reciever.py should be self governing, check and setup everything as needed and just forward its state to wizard
 if __name__ == "__main__":
 
     server_run_permissions_check()
 
+    # NOTE: paths wont change during reciever.py lifecycle
+    # NOTE: support only for separete steam servers
     # debug only: add a new server.json per argv
-    server_config_path = str(Path(__file__).absolute()).replace(
+    ROOT_PATH = ROOT_PATH = Path(__file__).parent.parent.absolute()
+    SERVER_CONFIG_PATH = str(Path(__file__).absolute()).replace(
         "reciever.py", "server.json" if platform != "linux" else "server_linux.json"
     )
 
     # TODO: ????
-    if not exists(server_config_path):
-        logger.error("{} is not present".format(server_config_path))
+    if not exists(SERVER_CONFIG_PATH):
+        logger.error("{} is not present".format(SERVER_CONFIG_PATH))
         create_config()
         exit(127)
 
-    webserver_config = read_webserver_config()
-    debug = webserver_config["debug"]
+    config = read_webserver_config()
 
-    logger.info(f"Server config: {webserver_config}")
+    logger.info(f"Server config: {config}")
 
-    root_path = webserver_config["root_path"]
-    reciever_path = join(root_path, "reciever")
+    DEBUG = config["debug"]
+    RECIEVER_PATH = join(ROOT_PATH, "reciever")
+    RECIEVER_HOST = config["host"]
+    RECIEVER_PORT = config["port"]
+    RECIEVER_MAFIFESTS_PATH = join(RECIEVER_PATH, "templates", "Manifests")
+    RECIEVER_INSTALLED_PATH = join(RECIEVER_PATH, "templates", "Installed")
+    SERVER_MANIFESTS_PATH = join(ROOT_PATH, "server", "Manifests")
+    SERVER_INSTALLED_PATH = join(ROOT_PATH, "server", "Installed")
 
-    manifests_source_path = join(root_path, "server", "Manifests")
-    manifests_target_path = join(reciever_path, "templates", "Manifests")
-    if not exists(manifests_target_path):
-        logger.info(f"Copying Manifests from: {manifests_source_path}")
-        try:
-            copytree(manifests_source_path, manifests_target_path)
-            logger.info(f"Created Manifests in: {manifests_target_path}")
-        except FileNotFoundError as e:
-            logger.error(f"Failed to copy Manifests. Reason: {str(e)}")
-    else:
-        logger.info(f"Manifests found in: {manifests_target_path}")
-
-    installed_source_path = join(root_path, "server", "Installed")
-    installed_target_path = join(reciever_path, "templates", "Installed")
-    if not exists(installed_target_path):
-        logger.info(f"Copying Installed from: {installed_source_path}")
-        try:
-            copytree(installed_source_path, installed_target_path)
-            logger.info(f"Created Installed in: {installed_target_path}")
-        except FileNotFoundError as e:
-            logger.error(f"Failed to copy Installed. Reason: {str(e)}")
-    else:
-        logger.info(f"Installed found in: {installed_target_path}")
+    server_copy_manifests()
+    server_copy_installed()
 
     try:
-        logger.info("Starting background polling process")
-        status_thread = Thread(
-            target=poll_background_status, args=(hooks.HOOKS,), daemon=True
-        )
-        status_thread.start()
+        server_start_polling()
 
-        if debug:
-            logger.info("Starting flask dev server")
+        if DEBUG:
+            logger.info("Starting flask DEV server")
             app.run(
-                host=webserver_config["host"],
-                port=webserver_config["port"],
-                debug=debug,
+                host=RECIEVER_HOST,
+                port=RECIEVER_PORT,
+                debug=DEBUG,
             )
         else:
-            logger.info("Starting flask prod server")
+            logger.info("Starting flask PROD server")
             serve(
                 app,
-                host=webserver_config["host"],
-                port=webserver_config["port"],
+                host=RECIEVER_HOST,
+                port=RECIEVER_PORT,
             )
 
     except Exception as e:
